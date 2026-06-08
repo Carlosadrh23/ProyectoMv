@@ -15,7 +15,6 @@ class MainActivity : ComponentActivity() {
             ArbnbTheme {
                 var currentScreen by remember { mutableStateOf(Screen.LOGIN) }
                 var selectedProperty by remember { mutableStateOf<Property?>(null) }
-                var selectedChat by remember { mutableStateOf<MessagePreview?>(null) }
 
                 when (currentScreen) {
                     Screen.LOGIN -> LoginScreen(
@@ -91,10 +90,7 @@ class MainActivity : ComponentActivity() {
                     )
                     Screen.MESSAGES -> MessagesScreen(
                         onBack = { currentScreen = Screen.HOME },
-                        onChatClick = { chat -> 
-                            selectedChat = chat
-                            currentScreen = Screen.CHAT_DETAIL 
-                        },
+                        onChatClick = { _ -> currentScreen = Screen.CHAT_DETAIL },
                         onMenuOptionClick = { option ->
                             currentScreen = when(option) {
                                 "Perfil" -> Screen.PROFILE
@@ -106,33 +102,15 @@ class MainActivity : ComponentActivity() {
                         },
                         onNavigateTo = { screen -> currentScreen = screen }
                     )
-                    Screen.CHAT_DETAIL -> {
-                        selectedChat?.let { chat ->
-                            ChatDetailScreen(
-                                messagePreview = chat,
-                                onBack = { currentScreen = Screen.MESSAGES },
-                                onNavigateTo = { screen -> currentScreen = screen }
-                            )
-                        }
-                    }
+                    Screen.CHAT_DETAIL -> ChatDetailScreen(
+                        chatName = "Angel",
+                        onBack = { currentScreen = Screen.MESSAGES },
+                        onNavigateTo = { screen -> currentScreen = screen }
+                    )
                     Screen.FAVORITES -> FavoritesScreen(
                         onPropertyClick = { property ->
                             selectedProperty = property
                             currentScreen = Screen.PROPERTY_DETAIL
-                        },
-                        onContactClick = { property ->
-                            val newChat = MessagePreview(
-                                id = messagesList.size + 1,
-                                initials = property.title.take(1).uppercase(),
-                                name = property.title,
-                                snippet = "Chat iniciado",
-                                time = "Ahora",
-                                avatarColor = com.movil.arbnb.ui.theme.ArbnbTeal,
-                                messages = emptyList()
-                            )
-                            messagesList.add(0, newChat)
-                            selectedChat = newChat
-                            currentScreen = Screen.CHAT_DETAIL
                         },
                         onMenuOptionClick = { option ->
                             currentScreen = when(option) {

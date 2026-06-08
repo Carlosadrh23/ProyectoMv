@@ -21,11 +21,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.movil.arbnb.ui.theme.ArbnbTeal
 
+data class MessagePreview(
+    val id: Int,
+    val initials: String,
+    val name: String,
+    val snippet: String,
+    val time: String,
+    val avatarColor: Color,
+    val unreadCount: Int = 0
+)
+
+val messagesList = listOf(
+    MessagePreview(1, "SR", "Sofia R.", "¡Bienvenido! El código de acceso...", "10:32", Color(0xFF64B5F6), 2),
+    MessagePreview(2, "MG", "Miguel G.", "Claro, el check-in es a las 3 p. m.", "Ayer", Color(0xFF81C784)),
+    MessagePreview(3, "AL", "Ana L.", "¿Necesitas más toallas? Con g...", "Lun", Color(0xFFBA68C8)),
+    MessagePreview(4, "RV", "Roberto V.", "Gracias por tu estancia, espero...", "Dom", Color(0xFFDCE775)),
+    MessagePreview(5, "CH", "Carmen H.", "Perfecto te espero a las 2 p. m.", "Sáb", Color(0xFFE57373))
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessagesScreen(
     onBack: () -> Unit,
-    onChatClick: (MessagePreview) -> Unit,
+    onChatClick: (Int) -> Unit,
     onMenuOptionClick: (String) -> Unit,
     onNavigateTo: (Screen) -> Unit
 ) {
@@ -85,7 +103,7 @@ fun MessagesScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(messagesList) { message ->
-                    MessageItem(message = message, onClick = { onChatClick(message) })
+                    MessageItem(message = message, onClick = { onChatClick(message.id) })
                     HorizontalDivider(color = Color.White.copy(alpha = 0.3f), thickness = 0.5.dp)
                 }
             }

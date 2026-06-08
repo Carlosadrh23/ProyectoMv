@@ -6,15 +6,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,20 +21,31 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.movil.arbnb.ui.theme.ArbnbTeal
 
+data class ChatMessage(
+    val text: String,
+    val isFromMe: Boolean
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatDetailScreen(
-    messagePreview: MessagePreview,
+    chatName: String,
     onBack: () -> Unit,
     onNavigateTo: (Screen) -> Unit
 ) {
-    var messageText by remember { mutableStateOf("") }
-    val chatMessages = remember { mutableStateListOf<ChatMessage>().apply { addAll(messagePreview.messages) } }
+    val messages = listOf(
+        ChatMessage("Hola Angel", false),
+        ChatMessage("¿Cómo va todo?", false),
+        ChatMessage("Todo bien, gracias", true),
+        ChatMessage("¿A qué hora llegas?", false),
+        ChatMessage("Estaré ahí a las 2", true),
+        ChatMessage("Perfecto", false)
+    )
 
     Scaffold(
         topBar = {
             ArbnbTopAppBar(
-                title = messagePreview.name,
+                title = chatName,
                 onNavigationIconClick = onBack,
                 navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
                 onMenuOptionClick = {},
@@ -60,10 +69,9 @@ fun ChatDetailScreen(
                 modifier = Modifier
                     .weight(1f)
                     .padding(horizontal = 16.dp),
-                reverseLayout = false,
-                contentPadding = PaddingValues(vertical = 16.dp)
+                reverseLayout = false
             ) {
-                items(chatMessages) { message ->
+                items(messages) { message ->
                     ChatBubble(message)
                 }
             }
@@ -92,32 +100,15 @@ fun ChatDetailScreen(
                         color = Color.Gray.copy(alpha = 0.3f)
                     ) {
                         Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.padding(horizontal = 16.dp)) {
-                            if (messageText.isEmpty()) {
-                                Text("Escribe un mensaje...", color = Color.DarkGray, fontSize = 14.sp)
-                            }
-                            BasicTextField(
-                                value = messageText,
-                                onValueChange = { messageText = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp, color = Color.Black)
-                            )
+                            Text("Escribe un mensaje...", color = Color.DarkGray, fontSize = 14.sp)
                         }
                     }
                     
-                    if (messageText.isNotBlank()) {
-                        IconButton(onClick = {
-                            chatMessages.add(ChatMessage(messageText, true))
-                            messageText = ""
-                        }) {
-                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Enviar", tint = ArbnbTeal)
-                        }
-                    } else {
-                        IconButton(onClick = { }) {
-                            Icon(Icons.Default.CameraAlt, contentDescription = null)
-                        }
-                        IconButton(onClick = { }) {
-                            Icon(Icons.Default.Mic, contentDescription = null)
-                        }
+                    IconButton(onClick = { }) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = null)
+                    }
+                    IconButton(onClick = { }) {
+                        Icon(Icons.Default.Mic, contentDescription = null)
                     }
                 }
             }
