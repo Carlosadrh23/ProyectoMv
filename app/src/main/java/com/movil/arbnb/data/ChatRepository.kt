@@ -9,71 +9,59 @@ object ChatRepository {
     private val db = FirebaseFirestore.getInstance()
     private val chatsCollection = db.collection("chats")
 
-    fun getOrCreateChat(myId: String, otherId: String, myName: String, otherName: String, onResult: (String) -> Unit) {
+    fun getMyChats(userId: String, onResult: (List<Chat>) -> Unit) {
         chatsCollection
-            .whereArrayContains("participantIds", myId)
+            .whereArrayContains("participantIds", userId)
+            .addSnapshotListener { snapshot, _ ->
+                val list = snapshot?.toObjects(Chat::class.java) ?: emptyList()
+                onResult(list)
+            }
+    }
+
+    fun getOrCreateChat(user1: String, name1: String, user2: String, name2: String, onResult: (String) -> Unit) {
+        val participants = listOf(user1, user2).sorted()
+        chatsCollection
+            .whereEqualTo("participantIds", participants)
             .get()
             .addOnSuccessListener { snapshot ->
-                val existingChat = snapshot.documents.find { doc ->
-                    val ids = doc.get("participantIds") as? List<*>
-                    ids?.contains(otherId) == true
-                }
-
-                if (existingChat != null) {
-                    onResult(existingChat.id)
+                if (!snapshot.isEmpty) {
+                    onResult(snapshot.documents[0].id)
                 } else {
-                    val newChat = hashMapOf(
-                        "participantIds" to listOf(myId, otherId),
-                        "participantNames" to mapOf(myId to myName, otherId to otherName),
-                        "lastMessage" to "",
-                        "lastTimestamp" to System.currentTimeMillis()
+                    val newChat = Chat(
+                        participantIds = participants,
+                        participantNames = mapOf(user1 to name1, user2 to name2),
+                        lastMessage = "Nuevo chat",
+                        lastTimestamp = System.currentTimeMillis()
                     )
-                    chatsCollection.add(newChat).addOnSuccessListener { onResult(it.id) }
+                    val newDoc = chatsCollection.document()
+                    newDoc.set(newChat.copy(id = newDoc.id))
+                        .addOnSuccessListener { onResult(newDoc.id) }
                 }
             }
     }
 
-    fun getMyChats(userId: String, onResult: (List<Chat>) -> Unit) {
-        chatsCollection
-            .whereArrayContains("participantIds", userId)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    onResult(emptyList())
-                    return@addSnapshotListener
-                }
-                val list = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(Chat::class.java)?.copy(id = doc.id)
-                } ?: emptyList()
-                onResult(list.sortedByDescending { it.lastTimestamp })
+    fun sendMessage(chatId: String, message: Message, onResult: (Boolean) -> Unit) {
+        val messagesCollection = chatsCollection.document(chatId).collection("messages")
+        val newDoc = messagesCollection.document()
+        val messageWithId = message.copy(id = newDoc.id, timestamp = System.currentTimeMillis())
+        
+        newDoc.set(messageWithId)
+            .addOnSuccessListener {
+                chatsCollection.document(chatId).update(
+                    "lastMessage", message.text,
+                    "lastTimestamp", messageWithId.timestamp
+                )
+                onResult(true)
             }
+            .addOnFailureListener { onResult(false) }
     }
 
     fun getMessages(chatId: String, onResult: (List<Message>) -> Unit) {
         chatsCollection.document(chatId).collection("messages")
             .orderBy("timestamp", Query.Direction.ASCENDING)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    onResult(emptyList())
-                    return@addSnapshotListener
-                }
-                val messages = snapshot?.documents?.mapNotNull { doc ->
-                    doc.toObject(Message::class.java)?.copy(id = doc.id)
-                } ?: emptyList()
-                onResult(messages)
+            .addSnapshotListener { snapshot, _ ->
+                val list = snapshot?.toObjects(Message::class.java) ?: emptyList()
+                onResult(list)
             }
-    }
-
-    fun sendMessage(chatId: String, senderId: String, text: String) {
-        val message = hashMapOf(
-            "senderId" to senderId,
-            "text" to text,
-            "timestamp" to System.currentTimeMillis()
-        )
-        chatsCollection.document(chatId).collection("messages").add(message)
-        
-        chatsCollection.document(chatId).update(
-            "lastMessage", text,
-            "lastTimestamp", System.currentTimeMillis()
-        )
     }
 }

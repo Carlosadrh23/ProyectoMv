@@ -95,7 +95,12 @@ class MainActivity : ComponentActivity() {
                     )
                     Screen.MY_RESERVATIONS -> MyReservationsScreen(
                         onBack = { currentScreen = Screen.HOME },
-                        onNavigateTo = { screen -> currentScreen = screen }
+                        onNavigateTo = { screen -> currentScreen = screen },
+                        onContactHost = { chatId, chatName ->
+                            selectedChatId = chatId
+                            selectedChatName = chatName
+                            currentScreen = Screen.CHAT_DETAIL
+                        }
                     )
                     Screen.ADD_RESERVATION -> AddReservationScreen(
                         onBack = { currentScreen = Screen.PROFILE },

@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.movil.arbnb.ui.theme.*
+import com.movil.arbnb.data.PropertyRepository
+import com.movil.arbnb.data.UserRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,36 +29,25 @@ fun PropertyDetailScreen(
     property: Property,
     onBack: () -> Unit,
     onMenuOptionClick: (String) -> Unit,
-    onNavigateTo: (Screen) -> Unit
+    onNavigateTo: (Screen) -> Unit,
+    onContactHost: (String, String) -> Unit = { _, _ -> },
+    onConfirmReservation: (Reservation) -> Unit = {}
 ) {
     var showCancelDialog by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
+    var currentProperty by remember { mutableStateOf(property) }
+    var showReserveSuccess by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             Column {
                 ArbnbTopAppBar(
-                    title = "Viajes",
+                    title = "Detalle",
                     onNavigationIconClick = onBack,
                     navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
                     onMenuOptionClick = onMenuOptionClick,
-                    onLogoClick = onBack // Logo returns to Home
+                    onLogoClick = onBack
                 )
-                SecondaryTabRow(
-                    selectedTabIndex = 0,
-                    containerColor = ArbnbTeal,
-                    contentColor = Color.White,
-                    indicator = {
-                        TabRowDefaults.SecondaryIndicator(
-                            Modifier.tabIndicatorOffset(0),
-                            color = Color.White
-                        )
-                    }
-                ) {
-                    Tab(selected = true, onClick = {}, text = { Text("Próximos", fontSize = 12.sp) })
-                    Tab(selected = false, onClick = {}, text = { Text("Pasados", fontSize = 12.sp) })
-                    Tab(selected = false, onClick = {}, text = { Text("Cancelados", fontSize = 12.sp) })
-                }
             }
         },
         bottomBar = { 
@@ -86,22 +77,12 @@ fun PropertyDetailScreen(
                 Column {
                     Box {
                         Image(
-                            painter = painterResource(id = property.imageRes),
+                            painter = painterResource(id = currentProperty.imageRes),
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(250.dp),
                             contentScale = ContentScale.Crop
-                        )
-                        Icon(
-                            imageVector = Icons.Default.FavoriteBorder,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(8.dp)
-                                .background(Color.Black.copy(alpha = 0.2f), CircleShape)
-                                .padding(4.dp)
                         )
                     }
                     
@@ -112,15 +93,15 @@ fun PropertyDetailScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "${property.tipo_alojamiento} en ${property.ciudad}", 
+                                text = "${currentProperty.tipo_alojamiento} en ${currentProperty.ciudad}", 
                                 fontWeight = FontWeight.Bold, 
                                 fontSize = 16.sp
                             )
-                            Icon(imageVector = Icons.Default.OpenInFull, contentDescription = null, modifier = Modifier.size(18.dp))
+                            StaticRatingBar(rating = currentProperty.averageRating)
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = property.descripcion,
+                            text = currentProperty.descripcion,
                             fontSize = 14.sp,
                             color = Color.DarkGray
                         )
@@ -128,7 +109,7 @@ fun PropertyDetailScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         Text("Tu estancia incluye:", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        property.amenidades.forEach { item ->
+                        currentProperty.amenidades.forEach { item ->
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
                                 Icon(Icons.Default.Check, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -138,21 +119,86 @@ fun PropertyDetailScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
                         
-                        Button(
-                            onClick = { showCancelDialog = true },
-                            modifier = Modifier.align(Alignment.End),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text("Cancelar Reservación", color = Color.White, fontSize = 12.sp)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = {
+                                    val user = UserRepository.currentUser
+                                    if (user != null) {
+                                        val reservation = Reservation(
+                                            propertyId = currentProperty.id,
+                                            userId = user.email,
+                                            startDate = "2024-06-15",
+                                            endDate = "2024-06-20",
+                                            totalAmount = currentProperty.precio_noche,
+                                            status = "Próximo"
+                                        )
+                                        onConfirmReservation(reservation)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = ArbnbBlue),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Reservar Ahora", color = Color.White, fontSize = 12.sp)
+                            }
+
+                            Button(
+                                onClick = {
+                                    val user = UserRepository.currentUser
+                                    if (user != null) {
+                                        com.movil.arbnb.data.ChatRepository.getOrCreateChat(
+                                            user.email, user.fullName,
+                                            currentProperty.anfitrion_id, "Anfitrión"
+                                        ) { chatId ->
+                                            onContactHost(chatId, "Anfitrión")
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = ArbnbTeal),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Contactar", color = Color.White, fontSize = 12.sp)
+                            }
+                            
+                            Button(
+                                onClick = { showCancelDialog = true },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Cancelar", color = Color.White, fontSize = 12.sp)
+                            }
                         }
                     }
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(24.dp))
+
+            if (currentProperty.reviews.isNotEmpty()) {
+                Text(
+                    "Reseñas (${currentProperty.reviews.size})",
+                    modifier = Modifier.padding(horizontal = 24.dp),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                currentProperty.reviews.forEach { review ->
+                    ReviewItem(review)
+                }
+            }
             
-            ReviewSection()
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            ReviewSection(
+                onReviewSent = { newReview ->
+                    val updatedReviews = currentProperty.reviews + newReview
+                    val updatedProperty = currentProperty.copy(reviews = updatedReviews)
+                    PropertyRepository.updateProperty(updatedProperty) { success ->
+                        if (success) currentProperty = updatedProperty
+                    }
+                }
+            )
         }
 
         if (showCancelDialog) {
@@ -165,38 +211,75 @@ fun PropertyDetailScreen(
             )
         }
 
-        if (showSuccessDialog) {
-            CancelSuccessDialog(
-                onDismiss = {
-                    showSuccessDialog = false
-                    onBack()
+        if (showReserveSuccess) {
+            Dialog(onDismissRequest = { showReserveSuccess = false }) {
+                Card(shape = RoundedCornerShape(16.dp)) {
+                    Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.CheckCircle, null, tint = SuccessGreen, modifier = Modifier.size(60.dp))
+                        Spacer(Modifier.height(16.dp))
+                        Text("¡Reservación realizada!", fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(24.dp))
+                        Button(onClick = { showReserveSuccess = false; onBack() }) {
+                            Text("Aceptar")
+                        }
+                    }
                 }
-            )
+            }
         }
     }
 }
 
 @Composable
-fun ReviewSection() {
+fun ReviewItem(review: Review) {
     Card(
-        modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().padding(bottom = 24.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp).fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp)
+        elevation = CardDefaults.cardElevation(1.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(review.userName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                StaticRatingBar(rating = review.rating.toDouble(), size = 12.dp)
+                Spacer(modifier = Modifier.weight(1f))
+                Text(review.date, fontSize = 11.sp, color = Color.Gray)
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(review.comment, fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
+fun ReviewSection(onReviewSent: (Review) -> Unit) {
+    var comment by remember { mutableStateOf("") }
+    var rating by remember { mutableIntStateOf(0) }
+    
+    Card(
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 24.dp).fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Deja un comentario:", fontSize = 14.sp, color = Color.Gray)
             Spacer(modifier = Modifier.height(8.dp))
-            Box(modifier = Modifier.fillMaxWidth().height(100.dp).background(Color(0xFFEEEEEE), RoundedCornerShape(4.dp)))
+            OutlinedTextField(
+                value = comment,
+                onValueChange = { comment = it },
+                modifier = Modifier.fillMaxWidth().height(100.dp),
+                placeholder = { Text("Escribe tu experiencia...") }
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Row {
-                    repeat(5) { Icon(Icons.Default.StarBorder, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                }
-                Text(" 0.0", fontSize = 14.sp)
+                InteractiveRatingBar(rating = rating, onRatingChange = { rating = it })
                 Spacer(modifier = Modifier.weight(1f))
-                Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = Color.White), border = BorderStroke(1.dp, Color.Gray), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
-                    Text("Enviar Reseña", color = Color.Black, fontSize = 12.sp)
-                }
+                Button(
+                    onClick = {
+                        if (comment.isNotBlank() && rating > 0) {
+                            onReviewSent(Review(UserRepository.currentUser?.fullName ?: "Usuario", rating, comment))
+                            comment = ""; rating = 0
+                        }
+                    }
+                ) { Text("Enviar") }
             }
         }
     }
@@ -204,74 +287,20 @@ fun ReviewSection() {
 
 @Composable
 fun CancelConfirmationDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = ArbnbTealLight.copy(alpha = 0.95f)),
-            modifier = Modifier.padding(16.dp).fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "¿Desea cancelar su reservación?",
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    Button(
-                        onClick = onConfirm,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Confirmar", color = Color.White)
-                    }
-                    Button(
-                        onClick = onDismiss,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Cancelar", color = Color.White)
-                    }
-                }
-            }
-        }
-    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("¿Cancelar reservación?") },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Sí") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("No") } }
+    )
 }
 
 @Composable
 fun CancelSuccessDialog(onDismiss: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = ArbnbTealLight.copy(alpha = 0.95f)),
-            modifier = Modifier.padding(16.dp).fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "¡Se ha cancelado tu reservación con éxito!",
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(
-                    onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853)),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text("Volver", color = Color.White)
-                }
-            }
-        }
-    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Éxito") },
+        text = { Text("Reservación cancelada") },
+        confirmButton = { Button(onClick = onDismiss) { Text("Aceptar") } }
+    )
 }

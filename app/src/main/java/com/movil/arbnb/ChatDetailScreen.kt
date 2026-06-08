@@ -89,8 +89,14 @@ fun ChatDetailScreen(
                     
                     IconButton(onClick = {
                         if (text.isNotBlank()) {
-                            ChatRepository.sendMessage(chatId, currentUser?.email ?: "", text)
-                            text = ""
+                            val newMessage = Message(
+                                senderId = currentUser?.email ?: "",
+                                text = text,
+                                timestamp = System.currentTimeMillis()
+                            )
+                            ChatRepository.sendMessage(chatId, newMessage) { success ->
+                                if (success) text = ""
+                            }
                         }
                     }) {
                         Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Enviar", tint = ArbnbTeal)
