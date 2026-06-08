@@ -8,7 +8,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,13 +42,13 @@ fun PropertyDetailScreen(
                     onMenuOptionClick = onMenuOptionClick,
                     onLogoClick = onBack // Logo returns to Home
                 )
-                TabRow(
+                SecondaryTabRow(
                     selectedTabIndex = 0,
                     containerColor = ArbnbTeal,
                     contentColor = Color.White,
-                    indicator = { tabPositions ->
+                    indicator = {
                         TabRowDefaults.SecondaryIndicator(
-                            Modifier.tabIndicatorOffset(tabPositions[0]),
+                            Modifier.tabIndicatorOffset(0),
                             color = Color.White
                         )
                     }
