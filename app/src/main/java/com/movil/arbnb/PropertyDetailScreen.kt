@@ -31,7 +31,6 @@ fun PropertyDetailScreen(
 ) {
     var showCancelDialog by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
-    var currentProperty by remember { mutableStateOf(property) }
 
     Scaffold(
         topBar = {
@@ -87,7 +86,7 @@ fun PropertyDetailScreen(
                 Column {
                     Box {
                         Image(
-                            painter = painterResource(id = currentProperty.imageRes),
+                            painter = painterResource(id = property.imageRes),
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -113,15 +112,15 @@ fun PropertyDetailScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "${currentProperty.tipo_alojamiento} en ${currentProperty.ciudad}", 
+                                text = "${property.tipo_alojamiento} en ${property.ciudad}", 
                                 fontWeight = FontWeight.Bold, 
                                 fontSize = 16.sp
                             )
-                            StaticRatingBar(rating = currentProperty.averageRating)
+                            Icon(imageVector = Icons.Default.OpenInFull, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = currentProperty.descripcion,
+                            text = property.descripcion,
                             fontSize = 14.sp,
                             color = Color.DarkGray
                         )
@@ -129,7 +128,7 @@ fun PropertyDetailScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         Text("Tu estancia incluye:", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        currentProperty.amenidades.forEach { item ->
+                        property.amenidades.forEach { item ->
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
                                 Icon(Icons.Default.Check, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -150,38 +149,13 @@ fun PropertyDetailScreen(
                     }
                 }
             }
-
+            
             Spacer(modifier = Modifier.height(24.dp))
-
-            if (currentProperty.reviews.isNotEmpty()) {
-                Text(
-                    "Reseñas (${currentProperty.reviews.size})",
-                    modifier = Modifier.padding(horizontal = 24.dp),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-                currentProperty.reviews.forEach { review ->
-                    ReviewItem(review)
-                }
-            }
             
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            ReviewSection(
-                onReviewSent = { newReview ->
-                    val updatedReviews = currentProperty.reviews + newReview
-                    val updatedProperty = currentProperty.copy(reviews = updatedReviews)
-                    com.movil.arbnb.data.PropertyRepository.updateProperty(updatedProperty) { success ->
-                        if (success) {
-                            currentProperty = updatedProperty
-                        }
-                    }
-                }
-            )
+            ReviewSection()
         }
 
         if (showCancelDialog) {
-// ... existing dialogs ...
             CancelConfirmationDialog(
                 onConfirm = {
                     showCancelDialog = false
@@ -203,97 +177,24 @@ fun PropertyDetailScreen(
 }
 
 @Composable
-fun ReviewItem(review: Review) {
-    Card(
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp).fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(1.dp)
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(review.userName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Spacer(modifier = Modifier.width(8.dp))
-                StaticRatingBar(rating = review.rating.toDouble(), size = 12.dp)
-                Spacer(modifier = Modifier.weight(1f))
-                Text(review.date, fontSize = 11.sp, color = Color.Gray)
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(review.comment, fontSize = 13.sp)
-        }
-    }
-}
-
-@Composable
-fun ReviewSection(onReviewSent: (Review) -> Unit) {
-    var comment by remember { mutableStateOf("") }
-    var rating by remember { mutableIntStateOf(0) }
-    var error by remember { mutableStateOf<String?>(null) }
-
+fun ReviewSection() {
     Card(
         modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().padding(bottom = 24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(2.dp)
+        shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Deja un comentario:", fontSize = 14.sp, color = Color.Gray)
             Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = comment,
-                onValueChange = { 
-                    comment = it
-                    if (it.isNotEmpty()) error = null
-                },
-                modifier = Modifier.fillMaxWidth().height(100.dp),
-                placeholder = { Text("Escribe tu experiencia aquí...", fontSize = 14.sp) },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFFEEEEEE),
-                    unfocusedContainerColor = Color(0xFFEEEEEE),
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedBorderColor = ArbnbBlue
-                ),
-                shape = RoundedCornerShape(8.dp)
-            )
-            
-            if (error != null) {
-                Text(error!!, color = Color.Red, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
-            }
-
+            Box(modifier = Modifier.fillMaxWidth().height(100.dp).background(Color(0xFFEEEEEE), RoundedCornerShape(4.dp)))
             Spacer(modifier = Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                InteractiveRatingBar(
-                    rating = rating,
-                    onRatingChange = { 
-                        rating = it
-                        error = null
-                    }
-                )
-                Text(" ${rating.toDouble()}", fontSize = 14.sp)
+                Row {
+                    repeat(5) { Icon(Icons.Default.StarBorder, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                }
+                Text(" 0.0", fontSize = 14.sp)
                 Spacer(modifier = Modifier.weight(1f))
-                Button(
-                    onClick = {
-                        if (comment.isBlank()) {
-                            error = "Por favor escribe un comentario"
-                        } else if (rating == 0) {
-                            error = "Por favor selecciona una valoración"
-                        } else {
-                            val user = com.movil.arbnb.data.UserRepository.currentUser
-                            val newReview = Review(
-                                userName = user?.fullName ?: "Usuario Anónimo",
-                                rating = rating,
-                                comment = comment,
-                                date = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()).format(java.util.Date())
-                            )
-                            onReviewSent(newReview)
-                            comment = ""
-                            rating = 0
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color.Gray),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(24.dp)
-                ) {
+                Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = Color.White), border = BorderStroke(1.dp, Color.Gray), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
                     Text("Enviar Reseña", color = Color.Black, fontSize = 12.sp)
                 }
             }

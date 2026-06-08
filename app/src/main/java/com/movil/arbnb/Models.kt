@@ -18,6 +18,32 @@ data class Review(
     val date: String = "Hoy"
 )
 
+data class Reservation(
+    val id: String = "",
+    val propertyId: String = "",
+    val userId: String = "",
+    val startDate: String = "",
+    val endDate: String = "",
+    val guests: Int = 1,
+    val totalAmount: String = "",
+    val status: String = "Próximo" // Próximo, Pasado, Cancelado
+)
+
+data class Chat(
+    val id: String = "",
+    val participantIds: List<String> = emptyList(),
+    val participantNames: Map<String, String> = emptyMap(),
+    val lastMessage: String = "",
+    val lastTimestamp: Long = 0
+)
+
+data class Message(
+    val id: String = "",
+    val senderId: String = "",
+    val text: String = "",
+    val timestamp: Long = 0
+)
+
 data class Property(
     val id: String = "",
     val tipo_alojamiento: String = "",

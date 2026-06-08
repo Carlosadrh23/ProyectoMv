@@ -34,7 +34,7 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun ArbnbTheme(
-    darkTheme: Boolean = true, // Default to dark for this design
+    darkTheme: Boolean = false, // Changed default to false to match screenshots and light design
     dynamicColor: Boolean = false, // Disable dynamic to keep the custom colors
     content: @Composable () -> Unit
 ) {
