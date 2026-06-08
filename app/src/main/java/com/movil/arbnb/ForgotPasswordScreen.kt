@@ -27,21 +27,6 @@ fun ForgotPasswordScreen(
     onBackToLogin: () -> Unit,
 ) {
     var email by remember { mutableStateOf("") }
-    var emailError by remember { mutableStateOf<String?>(null) }
-
-    fun validate(): Boolean {
-        var isValid = true
-        if (email.isBlank()) {
-            emailError = "El correo es obligatorio"
-            isValid = false
-        } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            emailError = "Correo inválido"
-            isValid = false
-        } else {
-            emailError = null
-        }
-        return isValid
-    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -80,13 +65,21 @@ fun ForgotPasswordScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            CustomInputField(
-                label = "Correo electrónico:",
+            OutlinedTextField(
                 value = email,
-                onValueChange = { email = it; emailError = null },
-                icon = Icons.Default.Email,
-                isError = emailError != null,
-                errorMessage = emailError
+                onValueChange = { email = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(InputBackground, RoundedCornerShape(4.dp)),
+                placeholder = { Text("correo@ejemplo.com", color = Color.Gray) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = ArbnbBlue,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black
+                ),
+                shape = RoundedCornerShape(4.dp),
+                singleLine = true
             )
 
             Text(
@@ -96,7 +89,7 @@ fun ForgotPasswordScreen(
                 modifier = Modifier
                     .align(Alignment.Start)
                     .padding(top = 8.dp)
-                    .clickable { if (validate()) onCodeSent() }
+                    .clickable { onCodeSent() }
             )
 
             Spacer(modifier = Modifier.weight(1f))

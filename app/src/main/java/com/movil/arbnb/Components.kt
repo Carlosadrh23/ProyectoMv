@@ -23,8 +23,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.movil.arbnb.ui.theme.*
-import androidx.compose.ui.unit.sp
 import com.movil.arbnb.ui.theme.ArbnbBlue
 import com.movil.arbnb.ui.theme.ArbnbTeal
 import com.movil.arbnb.ui.theme.InputBackground
@@ -36,9 +34,7 @@ fun CustomInputField(
     onValueChange: (String) -> Unit,
     icon: ImageVector,
     isPassword: Boolean = false,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    isError: Boolean = false,
-    errorMessage: String? = null
+    keyboardType: KeyboardType = KeyboardType.Text
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(text = label, color = Color.White, fontSize = 14.sp)
@@ -55,22 +51,12 @@ fun CustomInputField(
                 focusedBorderColor = ArbnbBlue,
                 unfocusedBorderColor = Color.Transparent,
                 focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
-                errorBorderColor = ErrorRed
+                unfocusedTextColor = Color.Black
             ),
             shape = RoundedCornerShape(4.dp),
-            isError = isError,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             singleLine = true
         )
-        if (isError && errorMessage != null) {
-            Text(
-                text = errorMessage,
-                color = ErrorRed,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(start = 4.dp, top = 4.dp)
-            )
-        }
     }
 }
 

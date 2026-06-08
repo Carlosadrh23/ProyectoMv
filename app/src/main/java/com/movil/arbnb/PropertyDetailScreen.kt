@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.movil.arbnb.ui.theme.*
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,9 +32,6 @@ fun PropertyDetailScreen(
 ) {
     var showCancelDialog by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
-    
-    // Obtenemos la propiedad directamente de la lista global para que sea reactiva
-    val currentProperty = propertiesList.find { it.id == property.id } ?: property
 
     Scaffold(
         topBar = {
@@ -116,18 +112,12 @@ fun PropertyDetailScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
-                                Text(text = currentProperty.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFB300), modifier = Modifier.size(14.dp))
-                                    Text(text = " ${currentProperty.rating} (${currentProperty.reviews.size} reseñas)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
+                            Text(text = property.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             Icon(imageVector = Icons.Default.OpenInFull, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = currentProperty.description,
+                            text = property.description,
                             fontSize = 14.sp,
                             color = Color.DarkGray
                         )
@@ -160,20 +150,7 @@ fun PropertyDetailScreen(
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            ReviewSection(
-                reviews = currentProperty.reviews,
-                onAddReview = { newReview -> 
-                    val index = propertiesList.indexOfFirst { it.id == currentProperty.id }
-                    if (index != -1) {
-                        val updatedReviews = propertiesList[index].reviews + newReview
-                        val newAverage = updatedReviews.map { it.rating }.average()
-                        propertiesList[index] = propertiesList[index].copy(
-                            reviews = updatedReviews,
-                            rating = String.format(Locale.US, "%.1f", newAverage)
-                        )
-                    }
-                }
-            )
+            ReviewSection()
         }
 
         if (showCancelDialog) {
@@ -198,174 +175,27 @@ fun PropertyDetailScreen(
 }
 
 @Composable
-fun ReviewSection(
-    reviews: List<Review>,
-    onAddReview: (Review) -> Unit
-) {
-    var comment by remember { mutableStateOf("") }
-    var rating by remember { mutableIntStateOf(0) }
-    var commentError by remember { mutableStateOf<String?>(null) }
-    var ratingError by remember { mutableStateOf<String?>(null) }
-
-    fun validate(): Boolean {
-        var isValid = true
-        if (comment.isBlank()) {
-            commentError = "El comentario es obligatorio"
-            isValid = false
-        } else {
-            commentError = null
-        }
-
-        if (rating == 0) {
-            ratingError = "Selecciona una calificación"
-            isValid = false
-        } else {
-            ratingError = null
-        }
-        return isValid
-    }
-
-    Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(2.dp)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("Deja un comentario:", fontSize = 14.sp, color = Color.Gray)
-                Spacer(modifier = Modifier.height(8.dp))
-
-                TextField(
-                    value = comment,
-                    onValueChange = { 
-                        comment = it
-                        if (it.isNotBlank()) commentError = null 
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp),
-                    colors = TextFieldDefaults.colors(
-                        unfocusedContainerColor = Color(0xFFEEEEEE),
-                        focusedContainerColor = Color(0xFFEEEEEE),
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        errorIndicatorColor = ErrorRed
-                    ),
-                    shape = RoundedCornerShape(4.dp),
-                    isError = commentError != null,
-                    placeholder = { Text("Escribe tu experiencia aquí...", fontSize = 12.sp) }
-                )
-
-                if (commentError != null) {
-                    Text(
-                        text = commentError!!,
-                        color = ErrorRed,
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Row {
-                        repeat(5) { index ->
-                            val starIndex = index + 1
-                            Icon(
-                                imageVector = if (starIndex <= rating) Icons.Default.Star else Icons.Default.StarBorder,
-                                contentDescription = "Calificar con $starIndex estrellas",
-                                tint = if (starIndex <= rating) Color(0xFFFFB300) else Color.Gray,
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clickable { 
-                                        rating = starIndex
-                                        ratingError = null
-                                    }
-                            )
-                        }
-                    }
-                    Text(
-                        text = " ${rating.toDouble()}",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(start = 8.dp)
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Button(
-                        onClick = {
-                            if (validate()) {
-                                onAddReview(Review("Tú", rating, comment))
-                                comment = ""
-                                rating = 0
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color.LightGray),
-                        shape = RoundedCornerShape(20.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text("Enviar Reseña", color = Color.Black, fontSize = 12.sp)
-                    }
-                }
-                if (ratingError != null) {
-                    Text(
-                        text = ratingError!!,
-                        color = ErrorRed,
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-            }
-        }
-
-        if (reviews.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(24.dp))
-            Text("Reseñas de otros viajeros", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Spacer(modifier = Modifier.height(12.dp))
-            reviews.forEach { review ->
-                ReviewItem(review)
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-        }
-    }
-}
-
-@Composable
-fun ReviewItem(review: Review) {
+fun ReviewSection() {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth().padding(bottom = 24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(1.dp)
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Deja un comentario:", fontSize = 14.sp, color = Color.Gray)
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(modifier = Modifier.fillMaxWidth().height(100.dp).background(Color(0xFFEEEEEE), RoundedCornerShape(4.dp)))
+            Spacer(modifier = Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.size(32.dp).background(ArbnbTeal, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(review.userName.take(1), color = Color.White, fontWeight = FontWeight.Bold)
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    Text(review.userName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text(review.date, fontSize = 11.sp, color = Color.Gray)
-                }
-                Spacer(modifier = Modifier.weight(1f))
                 Row {
-                    repeat(5) { index ->
-                        Icon(
-                            imageVector = if (index < review.rating) Icons.Default.Star else Icons.Default.StarBorder,
-                            contentDescription = null,
-                            tint = if (index < review.rating) Color(0xFFFFB300) else Color.Gray,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
+                    repeat(5) { Icon(Icons.Default.StarBorder, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                }
+                Text(" 0.0", fontSize = 14.sp)
+                Spacer(modifier = Modifier.weight(1f))
+                Button(onClick = {}, colors = ButtonDefaults.buttonColors(containerColor = Color.White), border = BorderStroke(1.dp, Color.Gray), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) {
+                    Text("Enviar Reseña", color = Color.Black, fontSize = 12.sp)
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(review.comment, fontSize = 13.sp, color = Color.DarkGray)
         }
     }
 }

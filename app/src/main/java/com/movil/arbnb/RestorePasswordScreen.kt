@@ -26,26 +26,6 @@ fun RestorePasswordScreen(
 ) {
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var newPasswordError by remember { mutableStateOf<String?>(null) }
-    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
-
-    fun validate(): Boolean {
-        var isValid = true
-        if (newPassword.length < 6) {
-            newPasswordError = "Mínimo 6 caracteres"
-            isValid = false
-        } else {
-            newPasswordError = null
-        }
-
-        if (confirmPassword != newPassword) {
-            confirmPasswordError = "Las contraseñas no coinciden"
-            isValid = false
-        } else {
-            confirmPasswordError = null
-        }
-        return isValid
-    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -78,11 +58,9 @@ fun RestorePasswordScreen(
             CustomInputField(
                 label = "Nueva contraseña:",
                 value = newPassword,
-                onValueChange = { newPassword = it; newPasswordError = null },
+                onValueChange = { newPassword = it },
                 icon = Icons.Default.Lock,
-                isPassword = true,
-                isError = newPasswordError != null,
-                errorMessage = newPasswordError
+                isPassword = true
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -90,22 +68,21 @@ fun RestorePasswordScreen(
             CustomInputField(
                 label = "Confirmar contraseña:",
                 value = confirmPassword,
-                onValueChange = { confirmPassword = it; confirmPasswordError = null },
+                onValueChange = { confirmPassword = it },
                 icon = Icons.Default.Lock,
-                isPassword = true,
-                isError = confirmPasswordError != null,
-                errorMessage = confirmPasswordError
+                isPassword = true
             )
 
             Spacer(modifier = Modifier.height(40.dp))
 
             Button(
-                onClick = { if (validate()) onRestoreSuccess() },
+                onClick = onRestoreSuccess,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ArbnbBlue)
+                colors = ButtonDefaults.buttonColors(containerColor = ArbnbBlue),
+                enabled = newPassword.length >= 6 && newPassword == confirmPassword
             ) {
                 Text(text = "Confirmar", color = Color.White, fontWeight = FontWeight.Bold)
             }

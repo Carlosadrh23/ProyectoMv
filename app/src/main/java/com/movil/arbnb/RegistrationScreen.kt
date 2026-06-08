@@ -2,9 +2,7 @@ package com.movil.arbnb
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AirportShuttle
@@ -33,56 +31,6 @@ fun RegistrationScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var termsAccepted by remember { mutableStateOf(false) }
 
-    var fullNameError by remember { mutableStateOf<String?>(null) }
-    var emailError by remember { mutableStateOf<String?>(null) }
-    var passwordError by remember { mutableStateOf<String?>(null) }
-    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
-    var termsError by remember { mutableStateOf<String?>(null) }
-
-    fun validate(): Boolean {
-        var isValid = true
-        
-        if (fullName.isBlank()) {
-            fullNameError = "El nombre es obligatorio"
-            isValid = false
-        } else {
-            fullNameError = null
-        }
-
-        if (email.isBlank()) {
-            emailError = "El correo es obligatorio"
-            isValid = false
-        } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            emailError = "Correo inválido"
-            isValid = false
-        } else {
-            emailError = null
-        }
-
-        if (password.length < 6) {
-            passwordError = "Mínimo 6 caracteres"
-            isValid = false
-        } else {
-            passwordError = null
-        }
-
-        if (confirmPassword != password) {
-            confirmPasswordError = "Las contraseñas no coinciden"
-            isValid = false
-        } else {
-            confirmPasswordError = null
-        }
-
-        if (!termsAccepted) {
-            termsError = "Debes aceptar los términos"
-            isValid = false
-        } else {
-            termsError = null
-        }
-
-        return isValid
-    }
-
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = DarkBackground
@@ -90,8 +38,7 @@ fun RegistrationScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
@@ -112,47 +59,13 @@ fun RegistrationScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            CustomInputField(
-                label = "Nombre completo:",
-                value = fullName,
-                onValueChange = { fullName = it; fullNameError = null },
-                icon = Icons.Default.Person,
-                isError = fullNameError != null,
-                errorMessage = fullNameError
-            )
+            CustomInputField(label = "Nombre completo:", value = fullName, onValueChange = { fullName = it }, icon = Icons.Default.Person)
             Spacer(modifier = Modifier.height(12.dp))
-            
-            CustomInputField(
-                label = "Correo electrónico:",
-                value = email,
-                onValueChange = { email = it; emailError = null },
-                icon = Icons.Default.Email,
-                keyboardType = KeyboardType.Email,
-                isError = emailError != null,
-                errorMessage = emailError
-            )
+            CustomInputField(label = "Correo electrónico:", value = email, onValueChange = { email = it }, icon = Icons.Default.Email, keyboardType = KeyboardType.Email)
             Spacer(modifier = Modifier.height(12.dp))
-            
-            CustomInputField(
-                label = "Contraseña:",
-                value = password,
-                onValueChange = { password = it; passwordError = null },
-                icon = Icons.Default.Lock,
-                isPassword = true,
-                isError = passwordError != null,
-                errorMessage = passwordError
-            )
+            CustomInputField(label = "Contraseña:", value = password, onValueChange = { password = it }, icon = Icons.Default.Lock, isPassword = true)
             Spacer(modifier = Modifier.height(12.dp))
-            
-            CustomInputField(
-                label = "Confirmar contraseña:",
-                value = confirmPassword,
-                onValueChange = { confirmPassword = it; confirmPasswordError = null },
-                icon = Icons.Default.Lock,
-                isPassword = true,
-                isError = confirmPasswordError != null,
-                errorMessage = confirmPasswordError
-            )
+            CustomInputField(label = "Confirmar contraseña:", value = confirmPassword, onValueChange = { confirmPassword = it }, icon = Icons.Default.Lock, isPassword = true)
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -162,7 +75,7 @@ fun RegistrationScreen(
             ) {
                 Checkbox(
                     checked = termsAccepted,
-                    onCheckedChange = { termsAccepted = it; termsError = null },
+                    onCheckedChange = { termsAccepted = it },
                     colors = CheckboxDefaults.colors(checkedColor = ArbnbBlue, uncheckedColor = Color.White)
                 )
                 Text(
@@ -172,19 +85,17 @@ fun RegistrationScreen(
                     modifier = Modifier.padding(start = 4.dp)
                 )
             }
-            if (termsError != null) {
-                Text(text = termsError!!, color = ErrorRed, fontSize = 12.sp, modifier = Modifier.padding(start = 12.dp))
-            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                onClick = { if (validate()) onRegisterSuccess() },
+                onClick = { onRegisterSuccess() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ArbnbBlue)
+                colors = ButtonDefaults.buttonColors(containerColor = ArbnbBlue),
+                enabled = (termsAccepted && fullName.isNotBlank() && email.isNotBlank() && password.length >= 6 && password == confirmPassword)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.White)

@@ -72,20 +72,14 @@ fun HomeScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            if (propertiesList.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = "No hay viajes disponibles", color = Color.Gray)
-                }
-            } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(1),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(propertiesList) { property ->
-                        PropertyCard(property = property, onClick = { onPropertyClick(property) })
-                    }
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(1),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(propertiesList) { property ->
+                    PropertyCard(property = property, onClick = { onPropertyClick(property) })
                 }
             }
         }
@@ -136,10 +130,7 @@ fun PropertyCard(property: Property, onClick: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(text = property.title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFB300), modifier = Modifier.size(14.dp))
-                        Text(text = " ${property.rating} (${property.reviews.size})", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
+                    Icon(imageVector = Icons.Default.OpenInFull, contentDescription = null, modifier = Modifier.size(16.dp))
                 }
                 Text(
                     text = property.description,
