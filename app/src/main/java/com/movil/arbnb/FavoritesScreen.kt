@@ -5,7 +5,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -13,6 +13,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.movil.arbnb.ui.theme.ArbnbBackground
 import com.movil.arbnb.ui.theme.ArbnbTeal
+import com.movil.arbnb.data.FavoriteRepository
+import com.movil.arbnb.data.PropertyRepository
+import com.movil.arbnb.data.UserRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -21,6 +24,20 @@ fun FavoritesScreen(
     onMenuOptionClick: (String) -> Unit,
     onNavigateTo: (Screen) -> Unit
 ) {
+    var favoriteProperties by remember { mutableStateOf<List<Property>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    
+    val currentUser = UserRepository.currentUser
+
+    LaunchedEffect(FavoriteRepository.favoriteIds.size) {
+        PropertyRepository.getAllActiveProperties { allProps ->
+            favoriteProperties = allProps.filter { prop ->
+                FavoriteRepository.favoriteIds.contains(prop.id)
+            }
+            isLoading = false
+        }
+    }
+
     Scaffold(
         topBar = {
             ArbnbTopAppBar(
@@ -50,10 +67,11 @@ fun FavoritesScreen(
                 color = ArbnbTeal
             )
             
-            // For now, just show a subset of properties as favorites
-            val favoriteProperties = propertiesList.take(2) 
-
-            if (favoriteProperties.isEmpty()) {
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else if (favoriteProperties.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
                     Text("Aún no tienes favoritos")
                 }
@@ -65,7 +83,16 @@ fun FavoritesScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(favoriteProperties) { property ->
-                        PropertyCard(property = property, onClick = { onPropertyClick(property) })
+                        PropertyCard(
+                            property = property, 
+                            isFavorite = true,
+                            onClick = { onPropertyClick(property) },
+                            onFavoriteClick = {
+                                currentUser?.let { user ->
+                                    FavoriteRepository.toggleFavorite(user.email, property.id)
+                                }
+                            }
+                        )
                     }
                 }
             }

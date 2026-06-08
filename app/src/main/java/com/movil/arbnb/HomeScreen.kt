@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.movil.arbnb.ui.theme.*
 import com.movil.arbnb.data.PropertyRepository
+import com.movil.arbnb.data.FavoriteRepository
+import com.movil.arbnb.data.UserRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,8 +36,13 @@ fun HomeScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
     var properties by remember { mutableStateOf<List<Property>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    
+    val currentUser = UserRepository.currentUser
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(currentUser?.email) {
+        currentUser?.let {
+            FavoriteRepository.loadFavorites(it.email)
+        }
         PropertyRepository.getAllActiveProperties { list ->
             properties = list
             isLoading = false
@@ -97,7 +104,17 @@ fun HomeScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(properties) { property ->
-                        PropertyCard(property = property, onClick = { onPropertyClick(property) })
+                        val isFavorite = FavoriteRepository.favoriteIds.contains(property.id)
+                        PropertyCard(
+                            property = property, 
+                            isFavorite = isFavorite,
+                            onClick = { onPropertyClick(property) },
+                            onFavoriteClick = {
+                                currentUser?.let { user ->
+                                    FavoriteRepository.toggleFavorite(user.email, property.id)
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -106,7 +123,12 @@ fun HomeScreen(
 }
 
 @Composable
-fun PropertyCard(property: Property, onClick: () -> Unit) {
+fun PropertyCard(
+    property: Property, 
+    isFavorite: Boolean = false,
+    onClick: () -> Unit,
+    onFavoriteClick: () -> Unit = {}
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -125,16 +147,21 @@ fun PropertyCard(property: Property, onClick: () -> Unit) {
                         .height(200.dp),
                     contentScale = ContentScale.Crop
                 )
-                Icon(
-                    imageVector = Icons.Default.FavoriteBorder,
-                    contentDescription = null,
-                    tint = Color.White,
+                IconButton(
+                    onClick = onFavoriteClick,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
                         .background(Color.Black.copy(alpha = 0.2f), CircleShape)
-                        .padding(4.dp)
-                )
+                        .size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = null,
+                        tint = if (isFavorite) Color.Red else Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
             Column(modifier = Modifier.padding(12.dp)) {
                 Row(

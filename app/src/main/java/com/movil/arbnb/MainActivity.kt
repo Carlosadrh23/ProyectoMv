@@ -16,6 +16,9 @@ class MainActivity : ComponentActivity() {
             ArbnbTheme {
                 var currentScreen by remember { mutableStateOf(Screen.LOGIN) }
                 var selectedProperty by remember { mutableStateOf<Property?>(null) }
+                var pendingReservation by remember { mutableStateOf<Reservation?>(null) }
+                var selectedChatId by remember { mutableStateOf("") }
+                var selectedChatName by remember { mutableStateOf("") }
 
                 fun handleMenuOption(option: String) {
                     currentScreen = when(option) {
@@ -57,7 +60,28 @@ class MainActivity : ComponentActivity() {
                                 property = property,
                                 onBack = { currentScreen = Screen.HOME },
                                 onMenuOptionClick = { handleMenuOption(it) },
-                                onNavigateTo = { screen -> currentScreen = screen }
+                                onNavigateTo = { screen -> currentScreen = screen },
+                                onConfirmReservation = { reservation ->
+                                    pendingReservation = reservation
+                                    currentScreen = Screen.CONFIRM_PAY
+                                },
+                                onContactHost = { chatId, chatName ->
+                                    selectedChatId = chatId
+                                    selectedChatName = chatName
+                                    currentScreen = Screen.CHAT_DETAIL
+                                }
+                            )
+                        }
+                    }
+                    Screen.CONFIRM_PAY -> {
+                        if (selectedProperty != null && pendingReservation != null) {
+                            ConfirmPayScreen(
+                                property = selectedProperty!!,
+                                reservation = pendingReservation!!,
+                                onBack = { currentScreen = Screen.PROPERTY_DETAIL },
+                                onPaymentSuccess = {
+                                    currentScreen = Screen.MY_RESERVATIONS
+                                }
                             )
                         }
                     }
@@ -80,12 +104,17 @@ class MainActivity : ComponentActivity() {
                     )
                     Screen.MESSAGES -> MessagesScreen(
                         onBack = { currentScreen = Screen.HOME },
-                        onChatClick = { currentScreen = Screen.CHAT_DETAIL },
+                        onChatClick = { id, name -> 
+                            selectedChatId = id
+                            selectedChatName = name
+                            currentScreen = Screen.CHAT_DETAIL 
+                        },
                         onMenuOptionClick = { handleMenuOption(it) },
                         onNavigateTo = { screen -> currentScreen = screen }
                     )
                     Screen.CHAT_DETAIL -> ChatDetailScreen(
-                        chatName = "Angel",
+                        chatId = selectedChatId,
+                        chatName = selectedChatName,
                         onBack = { currentScreen = Screen.MESSAGES },
                         onNavigateTo = { screen -> currentScreen = screen }
                     )

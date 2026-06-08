@@ -9,10 +9,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,33 +19,30 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.movil.arbnb.ui.theme.ArbnbTeal
-
-data class MessagePreview(
-    val id: Int,
-    val initials: String,
-    val name: String,
-    val snippet: String,
-    val time: String,
-    val avatarColor: Color,
-    val unreadCount: Int = 0
-)
-
-val messagesList = listOf(
-    MessagePreview(1, "SR", "Sofia R.", "¡Bienvenido! El código de acceso...", "10:32", Color(0xFF64B5F6), 2),
-    MessagePreview(2, "MG", "Miguel G.", "Claro, el check-in es a las 3 p. m.", "Ayer", Color(0xFF81C784)),
-    MessagePreview(3, "AL", "Ana L.", "¿Necesitas más toallas? Con g...", "Lun", Color(0xFFBA68C8)),
-    MessagePreview(4, "RV", "Roberto V.", "Gracias por tu estancia, espero...", "Dom", Color(0xFFDCE775)),
-    MessagePreview(5, "CH", "Carmen H.", "Perfecto te espero a las 2 p. m.", "Sáb", Color(0xFFE57373))
-)
+import com.movil.arbnb.data.UserRepository
+import com.movil.arbnb.data.ChatRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessagesScreen(
     onBack: () -> Unit,
-    onChatClick: (Int) -> Unit,
+    onChatClick: (String, String) -> Unit,
     onMenuOptionClick: (String) -> Unit,
     onNavigateTo: (Screen) -> Unit
 ) {
+    var chats by remember { mutableStateOf<List<Chat>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    val currentUser = UserRepository.currentUser
+
+    LaunchedEffect(currentUser?.email) {
+        currentUser?.let { user ->
+            ChatRepository.getMyChats(user.email) { list ->
+                chats = list
+                isLoading = false
+            }
+        } ?: run { isLoading = false }
+    }
+
     Scaffold(
         topBar = {
             ArbnbTopAppBar(
@@ -99,12 +95,27 @@ fun MessagesScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(messagesList) { message ->
-                    MessageItem(message = message, onClick = { onChatClick(message.id) })
-                    HorizontalDivider(color = Color.White.copy(alpha = 0.3f), thickness = 0.5.dp)
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Color.White)
+                }
+            } else if (chats.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No tienes mensajes aún", color = Color.White)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(chats) { chat ->
+                        val otherName = chat.participantNames.entries.find { it.key != currentUser?.email }?.value ?: "Usuario"
+                        MessageItem(
+                            chat = chat, 
+                            otherName = otherName,
+                            onClick = { onChatClick(chat.id, otherName) }
+                        )
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.3f), thickness = 0.5.dp)
+                    }
                 }
             }
         }
@@ -112,7 +123,7 @@ fun MessagesScreen(
 }
 
 @Composable
-fun MessageItem(message: MessagePreview, onClick: () -> Unit) {
+fun MessageItem(chat: Chat, otherName: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -123,32 +134,17 @@ fun MessageItem(message: MessagePreview, onClick: () -> Unit) {
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .background(message.avatarColor, CircleShape),
+                .background(Color(0xFF64B5F6), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = message.initials, color = Color.White, fontWeight = FontWeight.Bold)
+            Text(text = otherName.take(2).uppercase(), color = Color.White, fontWeight = FontWeight.Bold)
         }
         
         Spacer(modifier = Modifier.width(12.dp))
         
         Column(modifier = Modifier.weight(1.0f)) {
-            Text(text = message.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Text(text = message.snippet, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp, maxLines = 1)
-        }
-        
-        Column(horizontalAlignment = Alignment.End) {
-            Text(text = message.time, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-            if (message.unreadCount > 0) {
-                Box(
-                    modifier = Modifier
-                        .padding(top = 4.dp)
-                        .size(20.dp)
-                        .background(Color.Red, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = message.unreadCount.toString(), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                }
-            }
+            Text(text = otherName, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(text = if (chat.lastMessage.isEmpty()) "Nuevo chat" else chat.lastMessage, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp, maxLines = 1)
         }
     }
 }
