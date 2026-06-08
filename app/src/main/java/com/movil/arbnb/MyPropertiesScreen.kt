@@ -25,6 +25,24 @@ fun MyPropertiesScreen(
     onNavigateTo: (Screen) -> Unit
 ) {
     var isAddingProperty by remember { mutableStateOf(false) }
+    var propertyName by remember { mutableStateOf("") }
+    var propertyNameError by remember { mutableStateOf<String?>(null) }
+    var wifiChecked by remember { mutableStateOf(false) }
+    var kitchenChecked by remember { mutableStateOf(false) }
+    var roomsChecked by remember { mutableStateOf(false) }
+    var bathroomsChecked by remember { mutableStateOf(false) }
+    var poolChecked by remember { mutableStateOf(false) }
+
+    fun validate(): Boolean {
+        var isValid = true
+        if (propertyName.isBlank()) {
+            propertyNameError = "El nombre de la propiedad es obligatorio"
+            isValid = false
+        } else {
+            propertyNameError = null
+        }
+        return isValid
+    }
 
     Scaffold(
         topBar = {
@@ -57,7 +75,7 @@ fun MyPropertiesScreen(
                 .padding(16.dp)
         ) {
             if (!isAddingProperty) {
-                // List View (Matching image 1/2)
+                // List View
                 MyPropertyItemCard("Cabo house, Los Cabos B.C.S", android.R.drawable.ic_menu_gallery)
                 MyPropertyItemCard("Maya house, Mazatlán Sinaloa", android.R.drawable.ic_menu_gallery)
                 
@@ -72,7 +90,7 @@ fun MyPropertiesScreen(
                     Text("Añadir Nueva Propiedad", color = Color.White)
                 }
             } else {
-                // Add Property View (Matching image 3)
+                // Add Property View
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -93,18 +111,24 @@ fun MyPropertiesScreen(
                         
                         Spacer(modifier = Modifier.height(24.dp))
                         
-                        MyPropertyInputField(label = "Nombre de la propiedad", value = "")
+                        MyPropertyInputField(
+                            label = "Nombre de la propiedad",
+                            value = propertyName,
+                            onValueChange = { propertyName = it; propertyNameError = null },
+                            isError = propertyNameError != null,
+                            errorMessage = propertyNameError
+                        )
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         // Checklist
-                        val features = listOf("Wifi", "Cocina", "3 habitaciones con cama individual", "2 baños", "Alberca")
-                        features.forEach { feature ->
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                                Checkbox(checked = false, onCheckedChange = {})
-                                Text(feature, fontSize = 14.sp)
-                            }
-                        }
+                        Text("Servicios y detalles", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
+                        
+                        FeatureRow("Wifi", wifiChecked) { wifiChecked = it }
+                        FeatureRow("Cocina", kitchenChecked) { kitchenChecked = it }
+                        FeatureRow("3 habitaciones con cama individual", roomsChecked) { roomsChecked = it }
+                        FeatureRow("2 baños", bathroomsChecked) { bathroomsChecked = it }
+                        FeatureRow("Alberca", poolChecked) { poolChecked = it }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
@@ -125,7 +149,7 @@ fun MyPropertiesScreen(
                         Spacer(modifier = Modifier.height(24.dp))
                         
                         Button(
-                            onClick = { isAddingProperty = false },
+                            onClick = { if (validate()) isAddingProperty = false },
                             modifier = Modifier.fillMaxWidth(0.5f),
                             colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
                             shape = RoundedCornerShape(8.dp)
@@ -136,6 +160,14 @@ fun MyPropertiesScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun FeatureRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Checkbox(checked = checked, onCheckedChange = onCheckedChange, colors = CheckboxDefaults.colors(checkedColor = ArbnbTeal))
+        Text(label, fontSize = 14.sp)
     }
 }
 
@@ -189,18 +221,29 @@ fun MyPropertyItemCard(title: String, imageRes: Int) {
 }
 
 @Composable
-fun MyPropertyInputField(label: String, value: String, onValueChange: (String) -> Unit = {}) {
+fun MyPropertyInputField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit = {},
+    isError: Boolean = false,
+    errorMessage: String? = null
+) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(label, fontSize = 12.sp, color = Color.Gray)
         TextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.fillMaxWidth(),
+            isError = isError,
             colors = TextFieldDefaults.colors(
                 unfocusedContainerColor = Color.Transparent,
                 focusedContainerColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.LightGray
+                unfocusedIndicatorColor = Color.LightGray,
+                errorIndicatorColor = ErrorRed
             )
         )
+        if (isError && errorMessage != null) {
+            Text(text = errorMessage, color = ErrorRed, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+        }
     }
 }
