@@ -20,20 +20,54 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.movil.arbnb.ui.theme.*
+import com.movil.arbnb.data.UserRepository
 
 @Composable
 fun ProfileScreen(
     onBack: () -> Unit,
     onNavigateTo: (Screen) -> Unit
 ) {
+    val user = UserRepository.currentUser
     var isEditing by remember { mutableStateOf(false) }
+    var showHostDialog by remember { mutableStateOf(false) }
 
     // Form fields
-    var fullName by remember { mutableStateOf("Jorge martinez") }
-    var email by remember { mutableStateOf("jorge@gmail.com") }
-    var phone by remember { mutableStateOf("55555555") }
-    var registrationDate by remember { mutableStateOf("2024-06-01") }
+    var fullName by remember { mutableStateOf(user?.fullName ?: "Invitado") }
+    var email by remember { mutableStateOf(user?.email ?: "") }
+    var phone by remember { mutableStateOf(user?.phone ?: "") }
+    var registrationDate by remember { mutableStateOf(user?.registrationDate ?: "2024-06-01") }
     
+    if (showHostDialog) {
+        AlertDialog(
+            onDismissRequest = { showHostDialog = false },
+            title = { Text("Convertirse en anfitrión") },
+            text = { Text("Para añadir propiedades primero debes convertirte en anfitrión. ¿Deseas hacerlo ahora?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        user?.let {
+                            val updatedUser = it.copy(esAnfitrion = true)
+                            UserRepository.updateUser(updatedUser) { success ->
+                                if (success) {
+                                    showHostDialog = false
+                                    onNavigateTo(Screen.MY_PROPERTIES)
+                                }
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ArbnbBlue)
+                ) {
+                    Text("Sí, quiero ser anfitrión")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showHostDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             ArbnbTopAppBar(
@@ -43,7 +77,10 @@ fun ProfileScreen(
                     when(option) {
                         "Propiedades" -> onNavigateTo(Screen.MY_PROPERTIES)
                         "Reservaciones" -> onNavigateTo(Screen.MY_RESERVATIONS)
-                        "Logout" -> onNavigateTo(Screen.LOGIN)
+                        "Logout" -> {
+                            UserRepository.logout()
+                            onNavigateTo(Screen.LOGIN)
+                        }
                     }
                 },
                 onLogoClick = onBack
@@ -67,7 +104,11 @@ fun ProfileScreen(
             // Stats Row
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 ProfileStatCard("Añadir Propiedades", null, Icons.Default.Home, Modifier.weight(1f)) {
-                    onNavigateTo(Screen.MY_PROPERTIES)
+                    if (user?.esAnfitrion == true) {
+                        onNavigateTo(Screen.MY_PROPERTIES)
+                    } else {
+                        showHostDialog = true
+                    }
                 }
                 ProfileStatCard("Añadir reservacion", null, Icons.Default.CalendarMonth, Modifier.weight(1f)) {
                     onNavigateTo(Screen.ADD_RESERVATION)
@@ -107,8 +148,14 @@ fun ProfileScreen(
                         // Display Mode
                         ProfileInfoItem("Nombre completo:", fullName)
                         ProfileInfoItem("Correo electrónico:", email)
-                        ProfileInfoItem("Teléfono:", phone)
+                        val maskedPhone = if (phone.length >= 2) {
+                            "*" .repeat(phone.length - 2) + phone.takeLast(2)
+                        } else {
+                            phone
+                        }
+                        ProfileInfoItem("Teléfono:", maskedPhone)
                         ProfileInfoItem("Fecha de registro:", registrationDate)
+                        ProfileInfoItem("Tipo de cuenta:", if (user?.esAnfitrion == true) "Anfitrión" else "Huésped")
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         
@@ -159,7 +206,14 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(40.dp))
                 
                 Button(
-                    onClick = { isEditing = false },
+                    onClick = { 
+                        val updatedUser = User(fullName, email, user?.password ?: "", phone, registrationDate, user?.esAnfitrion ?: false)
+                        UserRepository.updateUser(updatedUser) { success ->
+                            if (success) {
+                                isEditing = false
+                            }
+                        }
+                    },
                     modifier = Modifier
                         .width(150.dp)
                         .align(Alignment.CenterHorizontally),

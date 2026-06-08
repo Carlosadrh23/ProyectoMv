@@ -1,17 +1,29 @@
 package com.movil.arbnb
 
 data class Property(
-    val id: Int,
-    val title: String,
-    val price: String,
-    val rating: String,
-    val imageRes: Int,
-    val description: String = "Disfruta de una estancia inolvidable en este alojamiento con vistas increíbles y todas las comodidades que necesitas para tu viaje."
+    val id: String = "",
+    val tipo_alojamiento: String = "",
+    val direccion: String = "",
+    val zona: String = "",
+    val ciudad: String = "",
+    val estado: String = "",
+    val precio_noche: String = "",
+    val noches_minimas: Int = 1,
+    val descripcion: String = "",
+    val amenidades: List<String> = emptyList(),
+    val estado_publicacion: String = "Activo",
+    val anfitrion_id: String = "",
+    val rating: String = "5.0",
+    val imageRes: Int = android.R.drawable.ic_menu_gallery
 )
 
-val propertiesList = listOf(
-    Property(1, "Casa del Mar, La Paz BCS", "$2500 MXN por 2 noches", "4.9", android.R.drawable.ic_menu_gallery),
-    Property(2, "Cabaña, Mazamitla", "$2900 MXN por 2 noches", "4.89", android.R.drawable.ic_menu_gallery),
-    Property(3, "Departamento en Guadalajara", "$3400 MXN por 1 noche", "3.65", android.R.drawable.ic_menu_gallery),
-    Property(4, "Departamento en cabos san lucas", "$2500 MXN por 2 noches", "4.89", android.R.drawable.ic_menu_gallery)
+data class User(
+    val fullName: String = "",
+    val email: String = "",
+    val password: String = "",
+    val phone: String = "",
+    val registrationDate: String = "2024-06-01",
+    val esAnfitrion: Boolean = false
 )
+
+val propertiesList = emptyList<Property>()

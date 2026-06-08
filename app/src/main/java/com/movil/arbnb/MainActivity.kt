@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import com.movil.arbnb.ui.theme.ArbnbTheme
+import com.movil.arbnb.data.UserRepository
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -16,18 +17,23 @@ class MainActivity : ComponentActivity() {
                 var currentScreen by remember { mutableStateOf(Screen.LOGIN) }
                 var selectedProperty by remember { mutableStateOf<Property?>(null) }
 
+                fun handleMenuOption(option: String) {
+                    currentScreen = when(option) {
+                        "Perfil" -> Screen.PROFILE
+                        "Propiedades" -> Screen.MY_PROPERTIES
+                        "Reservaciones" -> Screen.MY_RESERVATIONS
+                        "Logout" -> {
+                            UserRepository.logout()
+                            Screen.LOGIN
+                        }
+                        else -> currentScreen
+                    }
+                }
+
                 when (currentScreen) {
                     Screen.LOGIN -> LoginScreen(
                         onLoginClick = { currentScreen = Screen.HOME },
-                        onRegisterClick = { currentScreen = Screen.REGISTRATION },
-                        onForgotPasswordClick = { currentScreen = Screen.FORGOT_PASSWORD }
-                    )
-                    Screen.FORGOT_PASSWORD -> ForgotPasswordScreen(
-                        onCodeSent = { currentScreen = Screen.RESTORE_PASSWORD },
-                        onBackToLogin = { currentScreen = Screen.LOGIN }
-                    )
-                    Screen.RESTORE_PASSWORD -> RestorePasswordScreen(
-                        onRestoreSuccess = { currentScreen = Screen.LOGIN }
+                        onRegisterClick = { currentScreen = Screen.REGISTRATION }
                     )
                     Screen.REGISTRATION -> RegistrationScreen(
                         onRegisterSuccess = { currentScreen = Screen.SUCCESS_REGISTRATION },
@@ -42,15 +48,7 @@ class MainActivity : ComponentActivity() {
                             selectedProperty = property
                             currentScreen = Screen.PROPERTY_DETAIL
                         },
-                        onMenuOptionClick = { option ->
-                            currentScreen = when(option) {
-                                "Perfil" -> Screen.PROFILE
-                                "Propiedades" -> Screen.MY_PROPERTIES
-                                "Reservaciones" -> Screen.MY_RESERVATIONS
-                                "Logout" -> Screen.LOGIN
-                                else -> Screen.HOME
-                            }
-                        },
+                        onMenuOptionClick = { handleMenuOption(it) },
                         onNavigateTo = { screen -> currentScreen = screen }
                     )
                     Screen.PROPERTY_DETAIL -> {
@@ -58,15 +56,7 @@ class MainActivity : ComponentActivity() {
                             PropertyDetailScreen(
                                 property = property,
                                 onBack = { currentScreen = Screen.HOME },
-                                onMenuOptionClick = { option ->
-                                    currentScreen = when(option) {
-                                        "Perfil" -> Screen.PROFILE
-                                        "Propiedades" -> Screen.MY_PROPERTIES
-                                        "Reservaciones" -> Screen.MY_RESERVATIONS
-                                        "Logout" -> Screen.LOGIN
-                                        else -> Screen.HOME
-                                    }
-                                },
+                                onMenuOptionClick = { handleMenuOption(it) },
                                 onNavigateTo = { screen -> currentScreen = screen }
                             )
                         }
@@ -90,16 +80,8 @@ class MainActivity : ComponentActivity() {
                     )
                     Screen.MESSAGES -> MessagesScreen(
                         onBack = { currentScreen = Screen.HOME },
-                        onChatClick = { _ -> currentScreen = Screen.CHAT_DETAIL },
-                        onMenuOptionClick = { option ->
-                            currentScreen = when(option) {
-                                "Perfil" -> Screen.PROFILE
-                                "Propiedades" -> Screen.MY_PROPERTIES
-                                "Reservaciones" -> Screen.MY_RESERVATIONS
-                                "Logout" -> Screen.LOGIN
-                                else -> Screen.HOME
-                            }
-                        },
+                        onChatClick = { currentScreen = Screen.CHAT_DETAIL },
+                        onMenuOptionClick = { handleMenuOption(it) },
                         onNavigateTo = { screen -> currentScreen = screen }
                     )
                     Screen.CHAT_DETAIL -> ChatDetailScreen(
@@ -112,15 +94,7 @@ class MainActivity : ComponentActivity() {
                             selectedProperty = property
                             currentScreen = Screen.PROPERTY_DETAIL
                         },
-                        onMenuOptionClick = { option ->
-                            currentScreen = when(option) {
-                                "Perfil" -> Screen.PROFILE
-                                "Propiedades" -> Screen.MY_PROPERTIES
-                                "Reservaciones" -> Screen.MY_RESERVATIONS
-                                "Logout" -> Screen.LOGIN
-                                else -> Screen.HOME
-                            }
-                        },
+                        onMenuOptionClick = { handleMenuOption(it) },
                         onNavigateTo = { screen -> currentScreen = screen }
                     )
                 }

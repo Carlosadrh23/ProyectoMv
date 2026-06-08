@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "254698101543",
+    "project_id": "homeaway-e4656",
+    "storage_bucket": "homeaway-e4656.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:254698101543:android:20c50951fa88031cfe2702",
+        "android_client_info": {
+          "package_name": "com.movil.arbnb"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCcTxTHIcALB5Ab7-ZF4e6C0B4uKLQAZr8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

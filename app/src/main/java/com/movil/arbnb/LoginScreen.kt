@@ -15,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -27,17 +26,19 @@ import com.movil.arbnb.ui.theme.ArbnbBlue
 import com.movil.arbnb.ui.theme.DarkBackground
 import com.movil.arbnb.ui.theme.ErrorRed
 import com.movil.arbnb.ui.theme.InputBackground
+import com.movil.arbnb.data.UserRepository
 
 @Composable
 fun LoginScreen(
     onLoginClick: () -> Unit = {},
     onRegisterClick: () -> Unit = {},
-    onForgotPasswordClick: () -> Unit = {}
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var emailError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
+    var loginError by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
 
     fun validate(): Boolean {
         var isValid = true
@@ -58,6 +59,20 @@ fun LoginScreen(
             passwordError = null
         }
         return isValid
+    }
+
+    fun handleLogin() {
+        if (validate()) {
+            isLoading = true
+            UserRepository.login(email, password) { success, error ->
+                isLoading = false
+                if (success) {
+                    onLoginClick()
+                } else {
+                    loginError = error ?: "Correo o contraseña incorrectos"
+                }
+            }
+        }
     }
 
     Surface(
@@ -99,17 +114,27 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            if (loginError != null) {
+                Text(
+                    text = loginError!!,
+                    color = ErrorRed,
+                    modifier = Modifier.padding(bottom = 16.dp),
+                    textAlign = TextAlign.Center
+                )
+            }
+
             // Email Field
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(text = "Correo electrónico:", color = Color.White, fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(4.dp))
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it; emailError = null },
+                    onValueChange = { email = it; emailError = null; loginError = null },
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(InputBackground, RoundedCornerShape(8.dp)),
                     leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color.Black) },
+                    enabled = !isLoading,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = ArbnbBlue,
                         unfocusedBorderColor = Color.Transparent,
@@ -136,12 +161,13 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(4.dp))
                 OutlinedTextField(
                     value = password,
-                    onValueChange = { password = it; passwordError = null },
+                    onValueChange = { password = it; passwordError = null; loginError = null },
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(InputBackground, RoundedCornerShape(8.dp)),
                     leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.Black) },
                     visualTransformation = PasswordVisualTransformation(),
+                    enabled = !isLoading,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = ArbnbBlue,
                         unfocusedBorderColor = Color.Transparent,
@@ -160,31 +186,26 @@ fun LoginScreen(
                 }
             }
 
-            Text(
-                text = "¿Olvidaste tu contraseña?",
-                color = ArbnbBlue,
-                fontSize = 12.sp,
-                modifier = Modifier
-                    .align(Alignment.Start)
-                    .padding(top = 8.dp)
-                    .clickable { onForgotPasswordClick() }
-            )
-
             Spacer(modifier = Modifier.height(32.dp))
 
             // Login Button
             Button(
-                onClick = { if (validate()) onLoginClick() },
+                onClick = { handleLogin() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = ArbnbBlue)
+                colors = ButtonDefaults.buttonColors(containerColor = ArbnbBlue),
+                enabled = !isLoading
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Iniciar sesión", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                if (isLoading) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = Color.White)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Iniciar sesión", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
                 }
             }
 
@@ -197,7 +218,7 @@ fun LoginScreen(
                     color = ArbnbBlue,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable { onRegisterClick() }
+                    modifier = Modifier.clickable { if (!isLoading) onRegisterClick() }
                 )
             }
         }

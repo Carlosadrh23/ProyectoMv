@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.movil.arbnb.ui.theme.*
+import com.movil.arbnb.data.PropertyRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,9 +34,19 @@ fun HomeScreen(
     onNavigateTo: (Screen) -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    var properties by remember { mutableStateOf<List<Property>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        PropertyRepository.getAllActiveProperties { list ->
+            properties = list
+            isLoading = false
+        }
+    }
 
     Scaffold(
         topBar = {
+// ... existing topBar ...
             Column {
                 ArbnbTopAppBar(
                     title = "Viajes",
@@ -72,14 +83,24 @@ fun HomeScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(1),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(propertiesList) { property ->
-                    PropertyCard(property = property, onClick = { onPropertyClick(property) })
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = ArbnbBlue)
+                }
+            } else if (properties.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No hay propiedades disponibles", color = Color.Gray)
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(1),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(properties) { property ->
+                        PropertyCard(property = property, onClick = { onPropertyClick(property) })
+                    }
                 }
             }
         }
@@ -123,22 +144,37 @@ fun PropertyCard(property: Property, onClick: () -> Unit) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = property.title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(
+                        text = "${property.tipo_alojamiento} en ${property.ciudad}",
+                        fontWeight = FontWeight.Bold, 
+                        fontSize = 14.sp
+                    )
                     Icon(imageVector = Icons.Default.OpenInFull, contentDescription = null, modifier = Modifier.size(16.dp))
                 }
                 Text(
-                    text = property.description,
+                    text = property.descripcion,
                     fontSize = 12.sp,
                     color = Color.Gray,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "$${property.precio_noche} MXN por noche",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = ArbnbBlue
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Check, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(14.dp))
-                    Text(text = "Wifi rápido", fontSize = 11.sp, modifier = Modifier.padding(end = 8.dp))
-                    Icon(Icons.Default.Check, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(14.dp))
-                    Text(text = "Cocina", fontSize = 11.sp)
+                    if (property.amenidades.contains("WIFI")) {
+                        Icon(Icons.Default.Check, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(14.dp))
+                        Text(text = "Wifi", fontSize = 11.sp, modifier = Modifier.padding(end = 8.dp))
+                    }
+                    if (property.amenidades.contains("Cocina")) {
+                        Icon(Icons.Default.Check, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(14.dp))
+                        Text(text = "Cocina", fontSize = 11.sp)
+                    }
                 }
             }
         }

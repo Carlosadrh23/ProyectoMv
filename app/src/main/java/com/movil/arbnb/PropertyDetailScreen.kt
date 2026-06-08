@@ -112,12 +112,16 @@ fun PropertyDetailScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = property.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text(
+                                text = "${property.tipo_alojamiento} en ${property.ciudad}", 
+                                fontWeight = FontWeight.Bold, 
+                                fontSize = 16.sp
+                            )
                             Icon(imageVector = Icons.Default.OpenInFull, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = property.description,
+                            text = property.descripcion,
                             fontSize = 14.sp,
                             color = Color.DarkGray
                         )
@@ -125,8 +129,7 @@ fun PropertyDetailScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         Text("Tu estancia incluye:", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        val items = listOf("Wifi rápido", "Estacionamiento", "Cocina equipada", "TV por cable")
-                        items.forEach { item ->
+                        property.amenidades.forEach { item ->
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) {
                                 Icon(Icons.Default.Check, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(8.dp))
