@@ -302,8 +302,7 @@ fun MyPropertyItemCard(property: Property) {
                         Text(property.estado_publicacion, fontSize = 10.sp, color = Color.White)
                     }
                     Spacer(modifier = Modifier.weight(1f))
-                    Text(property.rating, fontSize = 14.sp)
-                    Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFFFB300))
+                    StaticRatingBar(rating = property.averageRating, size = 16.dp)
                 }
             }
         }

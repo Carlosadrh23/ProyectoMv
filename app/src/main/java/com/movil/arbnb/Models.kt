@@ -31,10 +31,12 @@ data class Property(
     val amenidades: List<String> = emptyList(),
     val anfitrion_id: String = "",
     val estado_publicacion: String = "Activo",
-    val rating: String = "5.0",
     val imageRes: Int = android.R.drawable.ic_menu_gallery,
     val reviews: List<Review> = emptyList()
-)
+) {
+    val averageRating: Double
+        get() = if (reviews.isEmpty()) 0.0 else reviews.map { it.rating }.average()
+}
 
 val propertiesList = mutableStateListOf(
     Property(

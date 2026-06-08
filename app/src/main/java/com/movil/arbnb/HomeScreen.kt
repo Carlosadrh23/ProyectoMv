@@ -31,7 +31,6 @@ fun HomeScreen(
     onMenuOptionClick: (String) -> Unit,
     onNavigateTo: (Screen) -> Unit
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
     var properties by remember { mutableStateOf<List<Property>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -44,28 +43,12 @@ fun HomeScreen(
 
     Scaffold(
         topBar = {
-// ... existing topBar ...
             Column {
                 ArbnbTopAppBar(
-                    title = "Viajes",
+                    title = "Explorar",
                     onMenuOptionClick = onMenuOptionClick,
                     onLogoClick = { /* Already Home */ }
                 )
-                SecondaryTabRow(
-                    selectedTabIndex = selectedTab,
-                    containerColor = ArbnbTeal,
-                    contentColor = Color.White,
-                    indicator = {
-                        TabRowDefaults.SecondaryIndicator(
-                            Modifier.tabIndicatorOffset(selectedTab),
-                            color = Color.White
-                        )
-                    }
-                ) {
-                    Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Próximos", fontSize = 12.sp) })
-                    Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Pasados", fontSize = 12.sp) })
-                    Tab(selected = selectedTab == 2, onClick = { selectedTab = 2 }, text = { Text("Cancelados", fontSize = 12.sp) })
-                }
             }
         },
         bottomBar = { 
@@ -147,7 +130,7 @@ fun PropertyCard(property: Property, onClick: () -> Unit) {
                         fontWeight = FontWeight.Bold, 
                         fontSize = 14.sp
                     )
-                    Icon(imageVector = Icons.Default.OpenInFull, contentDescription = null, modifier = Modifier.size(16.dp))
+                    StaticRatingBar(rating = property.averageRating, size = 14.dp)
                 }
                 Text(
                     text = property.descripcion,
@@ -198,6 +181,12 @@ fun HomeBottomNavigation(
             selected = currentScreen == Screen.FAVORITES,
             onClick = { onNavigateTo(Screen.FAVORITES) },
             icon = { Icon(if (currentScreen == Screen.FAVORITES) Icons.Default.Favorite else Icons.Default.FavoriteBorder, contentDescription = null) },
+            colors = NavigationBarItemDefaults.colors(selectedIconColor = Color.Black, unselectedIconColor = Color.Black, indicatorColor = Color.White.copy(alpha = 0.3f))
+        )
+        NavigationBarItem(
+            selected = currentScreen == Screen.MY_RESERVATIONS,
+            onClick = { onNavigateTo(Screen.MY_RESERVATIONS) },
+            icon = { Icon(Icons.Default.CalendarMonth, contentDescription = null) },
             colors = NavigationBarItemDefaults.colors(selectedIconColor = Color.Black, unselectedIconColor = Color.Black, indicatorColor = Color.White.copy(alpha = 0.3f))
         )
         NavigationBarItem(

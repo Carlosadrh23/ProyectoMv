@@ -36,4 +36,11 @@ object PropertyRepository {
             }
             .addOnFailureListener { onResult(emptyList()) }
     }
+
+    fun updateProperty(property: Property, onResult: (Boolean) -> Unit) {
+        propertiesCollection.document(property.id)
+            .set(property)
+            .addOnSuccessListener { onResult(true) }
+            .addOnFailureListener { onResult(false) }
+    }
 }

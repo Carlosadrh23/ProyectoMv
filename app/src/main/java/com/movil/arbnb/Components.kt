@@ -10,6 +10,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.StarHalf
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -226,6 +227,58 @@ fun MyPropertyInputField(
                 cursorColor = Color.Black
             ),
             singleLine = true
+        )
+    }
+}
+
+@Composable
+fun InteractiveRatingBar(
+    rating: Int,
+    onRatingChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier = modifier) {
+        repeat(5) { index ->
+            val starIndex = index + 1
+            Icon(
+                imageVector = if (starIndex <= rating) Icons.Default.Star else Icons.Default.StarBorder,
+                contentDescription = null,
+                tint = if (starIndex <= rating) Color(0xFFFFD700) else Color.Gray,
+                modifier = Modifier
+                    .size(24.dp)
+                    .clickable { onRatingChange(starIndex) }
+            )
+        }
+    }
+}
+
+@Composable
+fun StaticRatingBar(
+    rating: Double,
+    modifier: Modifier = Modifier,
+    size: androidx.compose.ui.unit.Dp = 16.dp
+) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        repeat(5) { index ->
+            val starIndex = index + 1
+            val icon = when {
+                starIndex <= rating -> Icons.Default.Star
+                starIndex - 0.5 <= rating -> Icons.Default.StarHalf
+                else -> Icons.Default.StarBorder
+            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color(0xFFFFD700),
+                modifier = Modifier.size(size)
+            )
+        }
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = "%.1f".format(java.util.Locale.US, rating),
+            fontSize = (size.value * 0.875).sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.DarkGray
         )
     }
 }
