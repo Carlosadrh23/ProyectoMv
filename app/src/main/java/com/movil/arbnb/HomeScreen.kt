@@ -113,13 +113,19 @@ fun PropertyCard(property: Property, onClick: () -> Unit) {
                     contentScale = ContentScale.Crop
                 )
                 Icon(
-                    imageVector = Icons.Default.FavoriteBorder,
+                    imageVector = if (property.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = if (property.isFavorite) Color.Red else Color.White,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(8.dp)
                         .background(Color.Black.copy(alpha = 0.2f), CircleShape)
+                        .clickable {
+                            val index = propertiesList.indexOfFirst { it.id == property.id }
+                            if (index != -1) {
+                                propertiesList[index] = propertiesList[index].copy(isFavorite = !property.isFavorite)
+                            }
+                        }
                         .padding(4.dp)
                 )
             }
