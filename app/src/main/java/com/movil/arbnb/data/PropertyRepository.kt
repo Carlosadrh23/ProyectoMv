@@ -45,6 +45,13 @@ object PropertyRepository {
             .addOnFailureListener { onResult(false) }
     }
 
+    fun deleteProperty(propertyId: String, onResult: (Boolean) -> Unit) {
+        propertiesCollection.document(propertyId)
+            .delete()
+            .addOnSuccessListener { onResult(true) }
+            .addOnFailureListener { onResult(false) }
+    }
+
     // Reservation Logic (Point 1)
     fun addReservation(reservation: Reservation, onResult: (Boolean, String?) -> Unit) {
         val reservationsCollection = db.collection("reservations")

@@ -17,8 +17,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.movil.arbnb.ui.theme.*
-import com.movil.arbnb.data.PropertyRepository
 import com.movil.arbnb.data.UserRepository
+import com.movil.arbnb.data.ReservationRepository
+import com.movil.arbnb.data.PropertyRepository
+import com.movil.arbnb.data.ChatRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,17 +31,29 @@ fun MyReservationsScreen(
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var reservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
+    var allProperties by remember { mutableStateOf<List<Property>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var showCancelDialog by remember { mutableStateOf(false) }
+    var showSuccessDialog by remember { mutableStateOf(false) }
+    var resToCancel by remember { mutableStateOf<String?>(null) }
     
     val currentUser = UserRepository.currentUser
 
+    fun loadData() {
+        isLoading = true
+        PropertyRepository.getAllActiveProperties { properties ->
+            allProperties = properties
+            currentUser?.let { user ->
+                ReservationRepository.getReservationsByUser(user.email) { list ->
+                    reservations = list
+                    isLoading = false
+                }
+            } ?: run { isLoading = false }
+        }
+    }
+
     LaunchedEffect(Unit) {
-        currentUser?.let { user ->
-            PropertyRepository.getReservationsByUser(user.email) { list ->
-                reservations = list
-                isLoading = false
-            }
-        } ?: run { isLoading = false }
+        loadData()
     }
 
     val filteredReservations = when (selectedTab) {
@@ -91,122 +105,221 @@ fun MyReservationsScreen(
                 onNavigateTo = onNavigateTo
             ) 
         },
-        containerColor = ArbnbTeal
+        containerColor = Color(0xFFF7F7F7)
     ) { padding ->
         Column(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(16.dp)
         ) {
             if (isLoading) {
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color.White)
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = ArbnbTeal)
                 }
             } else if (filteredReservations.isEmpty()) {
-                Text(
-                    text = "No tienes viajes en esta categoría.",
-                    color = Color.White,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(top = 32.dp)
-                )
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "No tienes viajes en esta categoría.",
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
+                    )
+                }
             } else {
-                filteredReservations.forEach { reservation ->
-                    if (selectedTab == 2) {
-                        val property = propertiesList.firstOrNull { it.id == reservation.propertyId } ?: propertiesList[0]
-                        CancelledReservationCard(
-                            property = property.copy(descripcion = "Reservación en ${property.ciudad}"),
-                            onContact = {
-                                val user = UserRepository.currentUser
-                                if (user != null) {
-                                    com.movil.arbnb.data.ChatRepository.getOrCreateChat(
-                                        user.email, user.fullName,
-                                        property.anfitrion_id, "Anfitrión"
-                                    ) { chatId ->
-                                        onContactHost(chatId, "Anfitrión")
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
+                ) {
+                    Column(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                        // Header
+                        Row(
+                            modifier = Modifier
+                                .background(Color(0xFFF9F9F9))
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TableHeaderItem("Propiedad", 200.dp)
+                            TableHeaderItem("Fechas", 200.dp)
+                            TableHeaderItem("Huéspedes", 100.dp)
+                            TableHeaderItem("Total", 120.dp)
+                            TableHeaderItem("Estado", 120.dp)
+                            if (selectedTab == 0) TableHeaderItem("Acciones", 200.dp)
+                        }
+                        
+                        HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f))
+
+                        filteredReservations.forEach { reservation ->
+                            val property = allProperties.find { it.id == reservation.propertyId }
+                            ReservationRow(
+                                reservation = reservation,
+                                property = property,
+                                showActions = selectedTab == 0,
+                                onContact = {
+                                    property?.let { p ->
+                                        ChatRepository.getOrCreateChat(
+                                            currentUser?.email ?: "", currentUser?.fullName ?: "Usuario",
+                                            p.anfitrion_id, "Anfitrión"
+                                        ) { chatId ->
+                                            onContactHost(chatId, "Anfitrión")
+                                        }
                                     }
+                                },
+                                onCancel = {
+                                    resToCancel = reservation.id
+                                    showCancelDialog = true
                                 }
-                            }
-                        )
-                    } else {
-                        ReservationCard(reservation)
+                            )
+                            HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f), modifier = Modifier.padding(horizontal = 16.dp))
+                        }
                     }
                 }
             }
         }
-    }
-}
+        
+        if (showCancelDialog) {
+            AlertDialog(
+                onDismissRequest = { showCancelDialog = false },
+                title = { Text("¿Cancelar reservación?") },
+                text = { Text("Si cancelas, se te reembolsará el dinero a tu cuenta.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        resToCancel?.let { id ->
+                            ReservationRepository.updateReservationStatus(id, "Cancelado") { success ->
+                                if (success) {
+                                    showCancelDialog = false
+                                    showSuccessDialog = true
+                                    loadData()
+                                }
+                            }
+                        }
+                    }) { Text("Sí, cancelar") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCancelDialog = false }) { Text("No") }
+                }
+            )
+        }
 
-@Composable
-fun ReservationCard(reservation: Reservation) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Reservación #${reservation.id.takeLast(6)}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Desde: ${reservation.startDate}", fontSize = 14.sp)
-            Text("Hasta: ${reservation.endDate}", fontSize = 14.sp)
-            Text("Monto: $${reservation.totalAmount} MXN", fontWeight = FontWeight.Bold, color = ArbnbBlue)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Estado: ${reservation.status}", color = if(reservation.status == "Cancelado") Color.Red else SuccessGreen)
+        if (showSuccessDialog) {
+            AlertDialog(
+                onDismissRequest = { showSuccessDialog = false },
+                title = { Text("Éxito") },
+                text = { Text("Reservación cancelada. Se te reembolsará el dinero a tu cuenta en un plazo de 3 a 5 días hábiles.") },
+                confirmButton = {
+                    Button(onClick = { showSuccessDialog = false }) { Text("Aceptar") }
+                }
+            )
         }
     }
 }
 
 @Composable
-fun CancelledReservationCard(property: Property, onContact: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(4.dp)
+fun TableHeaderItem(text: String, width: androidx.compose.ui.unit.Dp) {
+    Text(
+        text = text,
+        modifier = Modifier.width(width),
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
+        color = Color.Gray
+    )
+}
+
+@Composable
+fun ReservationRow(
+    reservation: Reservation,
+    property: Property?,
+    showActions: Boolean,
+    onContact: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Row(
+        modifier = Modifier.padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
-            Image(
-                painter = painterResource(id = property.imageRes),
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                contentScale = ContentScale.Crop
-            )
-            
-            Column(modifier = Modifier.padding(16.dp)) {
+        // Propiedad
+        Column(modifier = Modifier.width(200.dp)) {
+            Text(text = property?.tipo_alojamiento ?: "Cargando...", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(text = property?.ciudad ?: "", fontSize = 12.sp, color = Color.Gray)
+        }
+
+        // Fechas
+        Text(
+            text = "${reservation.startDate} - ${reservation.endDate}",
+            modifier = Modifier.width(200.dp),
+            fontSize = 14.sp
+        )
+
+        // Huéspedes
+        Text(
+            text = reservation.guests.toString(),
+            modifier = Modifier.width(100.dp),
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center
+        )
+
+        // Total
+        Text(
+            text = "$${reservation.totalAmount} MXN",
+            modifier = Modifier.width(120.dp),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        // Estado
+        Box(
+            modifier = Modifier
+                .width(120.dp)
+                .padding(end = 16.dp)
+        ) {
+            val bgColor = when(reservation.status) {
+                "Cancelado" -> Color(0xFFFFEBEE)
+                "Confirmado", "Próximo" -> Color(0xFFE8F5E9)
+                else -> Color(0xFFF5F5F5)
+            }
+            val textColor = when(reservation.status) {
+                "Cancelado" -> Color(0xFFC62828)
+                "Confirmado", "Próximo" -> Color(0xFF2E7D32)
+                else -> Color.Gray
+            }
+            Surface(
+                color = bgColor,
+                shape = RoundedCornerShape(16.dp)
+            ) {
                 Text(
-                    text = property.descripcion,
-                    fontSize = 14.sp,
-                    color = Color.Black,
-                    lineHeight = 20.sp
+                    text = reservation.status.lowercase(),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    fontSize = 12.sp,
+                    color = textColor,
+                    fontWeight = FontWeight.Medium
                 )
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+            }
+        }
+
+        // Acciones
+        if (showActions) {
+            Row(
+                modifier = Modifier.width(200.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onContact,
+                    modifier = Modifier.height(32.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE0F2F1)),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    Button(
-                        onClick = { },
-                        modifier = Modifier.weight(1f).height(40.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Viaje Cancelado", color = Color.White, fontSize = 12.sp)
-                    }
-                    
-                    Button(
-                        onClick = onContact,
-                        modifier = Modifier.weight(1f).height(40.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = ArbnbBlue),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Contactar", color = Color.White, fontSize = 12.sp)
-                    }
+                    Text("Contactar", color = Color(0xFF00695C), fontSize = 12.sp)
+                }
+                Button(
+                    onClick = onCancel,
+                    modifier = Modifier.height(32.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEBEE)),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text("Cancelar", color = Color(0xFFC62828), fontSize = 12.sp)
                 }
             }
         }

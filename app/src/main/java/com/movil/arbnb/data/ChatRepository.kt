@@ -12,14 +12,23 @@ object ChatRepository {
     fun getMyChats(userId: String, onResult: (List<Chat>) -> Unit) {
         chatsCollection
             .whereArrayContains("participantIds", userId)
-            .addSnapshotListener { snapshot, _ ->
-                val list = snapshot?.toObjects(Chat::class.java) ?: emptyList()
-                onResult(list)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    onResult(emptyList())
+                    return@addSnapshotListener
+                }
+                val list = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(Chat::class.java)?.copy(id = doc.id)
+                } ?: emptyList()
+                // Sort locally since index might be missing in Firestore
+                onResult(list.sortedByDescending { it.lastTimestamp })
             }
     }
 
-    fun getOrCreateChat(user1: String, name1: String, user2: String, name2: String, onResult: (String) -> Unit) {
-        val participants = listOf(user1, user2).sorted()
+    fun getOrCreateChat(myId: String, myName: String, otherId: String, otherName: String, onResult: (String) -> Unit) {
+        // We use a sorted list of IDs to check for existing chat
+        val participants = listOf(myId, otherId).sorted()
+        
         chatsCollection
             .whereEqualTo("participantIds", participants)
             .get()
@@ -29,7 +38,7 @@ object ChatRepository {
                 } else {
                     val newChat = Chat(
                         participantIds = participants,
-                        participantNames = mapOf(user1 to name1, user2 to name2),
+                        participantNames = mapOf(myId to myName, otherId to otherName),
                         lastMessage = "Nuevo chat",
                         lastTimestamp = System.currentTimeMillis()
                     )
@@ -40,28 +49,36 @@ object ChatRepository {
             }
     }
 
-    fun sendMessage(chatId: String, message: Message, onResult: (Boolean) -> Unit) {
+    fun sendMessage(chatId: String, message: Message, onComplete: (Boolean) -> Unit) {
         val messagesCollection = chatsCollection.document(chatId).collection("messages")
         val newDoc = messagesCollection.document()
-        val messageWithId = message.copy(id = newDoc.id, timestamp = System.currentTimeMillis())
+        val messageWithId = message.copy(id = newDoc.id)
         
         newDoc.set(messageWithId)
             .addOnSuccessListener {
                 chatsCollection.document(chatId).update(
                     "lastMessage", message.text,
-                    "lastTimestamp", messageWithId.timestamp
+                    "lastTimestamp", message.timestamp
                 )
-                onResult(true)
+                onComplete(true)
             }
-            .addOnFailureListener { onResult(false) }
+            .addOnFailureListener {
+                onComplete(false)
+            }
     }
 
     fun getMessages(chatId: String, onResult: (List<Message>) -> Unit) {
         chatsCollection.document(chatId).collection("messages")
             .orderBy("timestamp", Query.Direction.ASCENDING)
-            .addSnapshotListener { snapshot, _ ->
-                val list = snapshot?.toObjects(Message::class.java) ?: emptyList()
-                onResult(list)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    onResult(emptyList())
+                    return@addSnapshotListener
+                }
+                val messages = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(Message::class.java)?.copy(id = doc.id)
+                } ?: emptyList()
+                onResult(messages)
             }
     }
 }

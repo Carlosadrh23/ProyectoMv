@@ -22,6 +22,8 @@ import androidx.compose.ui.window.Dialog
 import com.movil.arbnb.ui.theme.*
 import com.movil.arbnb.data.PropertyRepository
 import com.movil.arbnb.data.UserRepository
+import java.util.*
+import java.text.SimpleDateFormat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +39,20 @@ fun PropertyDetailScreen(
     var showSuccessDialog by remember { mutableStateOf(false) }
     var currentProperty by remember { mutableStateOf(property) }
     var showReserveSuccess by remember { mutableStateOf(false) }
+    var showBookingDialog by remember { mutableStateOf(false) }
+    var hasReservation by remember { mutableStateOf(false) }
+    var currentReservationId by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(currentProperty.id) {
+        val user = UserRepository.currentUser
+        if (user != null) {
+            PropertyRepository.getReservationsByUser(user.email) { reservations ->
+                val activeRes = reservations.find { it.propertyId == currentProperty.id && it.status == "Próximo" }
+                hasReservation = activeRes != null
+                currentReservationId = activeRes?.id
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -99,6 +115,13 @@ fun PropertyDetailScreen(
                             )
                             StaticRatingBar(rating = currentProperty.averageRating)
                         }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = currentProperty.direccion,
+                            fontSize = 13.sp,
+                            color = ArbnbBlue,
+                            fontWeight = FontWeight.Medium
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = currentProperty.descripcion,
@@ -122,24 +145,22 @@ fun PropertyDetailScreen(
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(
                                 onClick = {
-                                    val user = UserRepository.currentUser
-                                    if (user != null) {
-                                        val reservation = Reservation(
-                                            propertyId = currentProperty.id,
-                                            userId = user.email,
-                                            startDate = "2024-06-15",
-                                            endDate = "2024-06-20",
-                                            totalAmount = currentProperty.precio_noche,
-                                            status = "Próximo"
-                                        )
-                                        onConfirmReservation(reservation)
+                                    if (!hasReservation) {
+                                        showBookingDialog = true
                                     }
                                 },
                                 modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = ArbnbBlue),
-                                shape = RoundedCornerShape(8.dp)
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (hasReservation) Color.Gray else ArbnbBlue
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                enabled = !hasReservation
                             ) {
-                                Text("Reservar Ahora", color = Color.White, fontSize = 12.sp)
+                                Text(
+                                    text = if (hasReservation) "Ya Reservado" else "Reservar Ahora", 
+                                    color = Color.White, 
+                                    fontSize = 12.sp
+                                )
                             }
 
                             Button(
@@ -204,27 +225,232 @@ fun PropertyDetailScreen(
         if (showCancelDialog) {
             CancelConfirmationDialog(
                 onConfirm = {
-                    showCancelDialog = false
-                    showSuccessDialog = true
+                    currentReservationId?.let { id ->
+                        com.movil.arbnb.data.ReservationRepository.updateReservationStatus(id, "Cancelado") { success ->
+                            if (success) {
+                                showCancelDialog = false
+                                showSuccessDialog = true
+                                hasReservation = false
+                                currentReservationId = null
+                            }
+                        }
+                    }
                 },
                 onDismiss = { showCancelDialog = false }
             )
         }
 
-        if (showReserveSuccess) {
-            Dialog(onDismissRequest = { showReserveSuccess = false }) {
-                Card(shape = RoundedCornerShape(16.dp)) {
-                    Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.CheckCircle, null, tint = SuccessGreen, modifier = Modifier.size(60.dp))
-                        Spacer(Modifier.height(16.dp))
-                        Text("¡Reservación realizada!", fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(24.dp))
-                        Button(onClick = { showReserveSuccess = false; onBack() }) {
-                            Text("Aceptar")
+        if (showSuccessDialog) {
+            CancelSuccessDialog(onDismiss = { showSuccessDialog = false })
+        }
+
+        if (showBookingDialog) {
+            BookingSelectionDialog(
+                property = currentProperty,
+                onDismiss = { showBookingDialog = false },
+                onContinue = { reservation ->
+                    showBookingDialog = false
+                    onConfirmReservation(reservation)
+                }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BookingSelectionDialog(
+    property: Property,
+    onDismiss: () -> Unit,
+    onContinue: (Reservation) -> Unit
+) {
+    val datePickerStateLlegada = rememberDatePickerState(
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return utcTimeMillis >= System.currentTimeMillis() - 86400000 // Today or after
+            }
+        }
+    )
+    val datePickerStateSalida = rememberDatePickerState(
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                val arrivalDate = datePickerStateLlegada.selectedDateMillis ?: System.currentTimeMillis()
+                return utcTimeMillis > arrivalDate
+            }
+        }
+    )
+
+    var showLlegadaPicker by remember { mutableStateOf(false) }
+    var showSalidaPicker by remember { mutableStateOf(false) }
+    var guests by remember { mutableIntStateOf(1) }
+
+    val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    val llegadaText = datePickerStateLlegada.selectedDateMillis?.let { sdf.format(Date(it)) } ?: "dd/mm/aaaa"
+    val salidaText = datePickerStateSalida.selectedDateMillis?.let { sdf.format(Date(it)) } ?: "dd/mm/aaaa"
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Default.Close, contentDescription = "Cerrar")
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    Text(
+                        text = "$${property.precio_noche} MXN",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "por noche",
+                        fontSize = 14.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Llegada", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        OutlinedCard(
+                            onClick = { showLlegadaPicker = true },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(llegadaText, fontSize = 14.sp, color = if (datePickerStateLlegada.selectedDateMillis == null) Color.Gray else Color.Black)
+                                Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Salida", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        OutlinedCard(
+                            onClick = { showSalidaPicker = true },
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(salidaText, fontSize = 14.sp, color = if (datePickerStateSalida.selectedDateMillis == null) Color.Gray else Color.Black)
+                                Icon(Icons.Default.DateRange, contentDescription = null, modifier = Modifier.size(20.dp))
+                            }
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text("Huéspedes", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedCard(
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().height(64.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            OutlinedIconButton(
+                                onClick = { if (guests > 1) guests-- },
+                                modifier = Modifier.size(32.dp),
+                                shape = CircleShape
+                            ) {
+                                Text("-")
+                            }
+                            Text(guests.toString(), fontSize = 18.sp)
+                            OutlinedIconButton(
+                                onClick = { guests++ },
+                                modifier = Modifier.size(32.dp),
+                                shape = CircleShape
+                            ) {
+                                Text("+")
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Button(
+                    onClick = {
+                        val start = datePickerStateLlegada.selectedDateMillis
+                        val end = datePickerStateSalida.selectedDateMillis
+                        if (start != null && end != null) {
+                            val nights = ((end - start) / 86400000).toInt().coerceAtLeast(1)
+                            val total = property.precio_noche.toInt() * nights
+                            val reservation = Reservation(
+                                propertyId = property.id,
+                                userId = UserRepository.currentUser?.email ?: "",
+                                startDate = sdf.format(Date(start)),
+                                endDate = sdf.format(Date(end)),
+                                guests = guests,
+                                totalAmount = total.toString(),
+                                status = "Próximo"
+                            )
+                            onContinue(reservation)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ArbnbTeal),
+                    shape = RoundedCornerShape(8.dp),
+                    enabled = datePickerStateLlegada.selectedDateMillis != null && datePickerStateSalida.selectedDateMillis != null
+                ) {
+                    Text("Continuar", color = Color.White, fontWeight = FontWeight.Bold)
+                }
             }
+        }
+    }
+
+    if (showLlegadaPicker) {
+        DatePickerDialog(
+            onDismissRequest = { showLlegadaPicker = false },
+            confirmButton = {
+                TextButton(onClick = { showLlegadaPicker = false }) { Text("OK") }
+            }
+        ) {
+            DatePicker(state = datePickerStateLlegada)
+        }
+    }
+
+    if (showSalidaPicker) {
+        DatePickerDialog(
+            onDismissRequest = { showSalidaPicker = false },
+            confirmButton = {
+                TextButton(onClick = { showSalidaPicker = false }) { Text("OK") }
+            }
+        ) {
+            DatePicker(state = datePickerStateSalida)
         }
     }
 }
@@ -300,7 +526,7 @@ fun CancelSuccessDialog(onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Éxito") },
-        text = { Text("Reservación cancelada") },
+        text = { Text("Reservación cancelada. Se te reembolsará el dinero a tu cuenta en un plazo de 3 a 5 días hábiles.") },
         confirmButton = { Button(onClick = onDismiss) { Text("Aceptar") } }
     )
 }

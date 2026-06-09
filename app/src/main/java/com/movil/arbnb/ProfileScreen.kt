@@ -101,22 +101,6 @@ fun ProfileScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            // Stats Row
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                ProfileStatCard("Añadir Propiedades", null, Icons.Default.Home, Modifier.weight(1f)) {
-                    if (user?.esAnfitrion == true) {
-                        onNavigateTo(Screen.MY_PROPERTIES)
-                    } else {
-                        showHostDialog = true
-                    }
-                }
-                ProfileStatCard("Añadir reservacion", null, Icons.Default.CalendarMonth, Modifier.weight(1f)) {
-                    onNavigateTo(Screen.ADD_RESERVATION)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
             // Main Profile Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -130,7 +114,7 @@ fun ProfileScreen(
                             modifier = Modifier
                                 .size(70.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF607D8B)), // Darker icon background like in image
+                                .background(Color(0xFF607D8B)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(50.dp), tint = Color.White)
@@ -164,7 +148,7 @@ fun ProfileScreen(
                         
                         Button(
                             onClick = { isEditing = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)), // Green as in image
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E676)),
                             shape = RoundedCornerShape(20.dp),
                             modifier = Modifier.height(32.dp),
                             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 0.dp)
@@ -172,7 +156,7 @@ fun ProfileScreen(
                             Text("Editar Perfil", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     } else {
-                        // Edit Mode (Matching the image exactly)
+                        // Edit Mode
                         ProfileEditItem(label = "Nombre completo:", value = fullName, onValueChange = { fullName = it })
                         ProfileEditItem(label = "Correo electrónico:", value = email, onValueChange = { email = it })
                         ProfileEditItem(label = "Telefono:", value = phone, onValueChange = { phone = it })
@@ -192,14 +176,6 @@ fun ProfileScreen(
                         }
                     }
                 }
-            }
-
-            if (!isEditing) {
-                Spacer(modifier = Modifier.height(24.dp))
-                Text("Tus propiedades:", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Spacer(modifier = Modifier.height(8.dp))
-                ProfilePropertyMiniCard("Cabo house", "Disfruta de las maravillosas experiencias...", android.R.drawable.ic_menu_gallery)
-                ProfilePropertyMiniCard("Maya house", "Disfruta de las maravillosas experiencias...", android.R.drawable.ic_menu_gallery)
             }
             
             if (isEditing) {
@@ -224,32 +200,6 @@ fun ProfileScreen(
                     Text("Guardar", color = Color.Black)
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun ProfileStatCard(title: String, count: String?, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, onClick: () -> Unit) {
-    Card(
-        modifier = modifier
-            .height(100.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.align(Alignment.TopStart))
-            
-            if (count != null) {
-                Text(count, fontWeight = FontWeight.Bold, fontSize = 24.sp, modifier = Modifier.align(Alignment.BottomStart))
-            }
-            
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(30.dp).align(Alignment.BottomEnd),
-                tint = Color.Black
-            )
         }
     }
 }
@@ -293,28 +243,5 @@ fun ProfileInfoItem(label: String, value: String) {
         Text(label, fontSize = 12.sp, color = Color.Gray)
         Text(value, fontSize = 14.sp)
         HorizontalDivider(color = Color.LightGray, thickness = 0.5.dp)
-    }
-}
-
-@Composable
-fun ProfilePropertyMiniCard(title: String, desc: String, imageRes: Int) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(modifier = Modifier.padding(8.dp)) {
-            Image(
-                painter = painterResource(id = imageRes),
-                contentDescription = null,
-                modifier = Modifier.size(80.dp).clip(RoundedCornerShape(4.dp)),
-                contentScale = ContentScale.Crop
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text(desc, fontSize = 12.sp, color = Color.Gray, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-        }
     }
 }

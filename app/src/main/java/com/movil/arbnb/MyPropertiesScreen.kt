@@ -32,12 +32,16 @@ fun MyPropertiesScreen(
     onNavigateTo: (Screen) -> Unit
 ) {
     var isAddingProperty by remember { mutableStateOf(false) }
+    var editingProperty by remember { mutableStateOf<Property?>(null) }
     var userProperties by remember { mutableStateOf<List<Property>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     
     // Alerts
     var showSuccessDialog by remember { mutableStateOf(false) }
     var showErrorDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var propertyToDelete by remember { mutableStateOf<Property?>(null) }
+    var isDeleting by remember { mutableStateOf(false) }
     
     val currentUser = UserRepository.currentUser
 
@@ -49,6 +53,35 @@ fun MyPropertiesScreen(
                 isLoading = false
             }
         } ?: run { isLoading = false }
+    }
+
+    fun deletePropertyAndNotify(property: Property) {
+        isDeleting = true
+        com.movil.arbnb.data.ReservationRepository.getReservationsByProperty(property.id) { reservations ->
+            val activeReservations = reservations.filter { it.status == "Próximo" || it.status == "Confirmado" }
+            
+            var updatedCount = 0
+            if (activeReservations.isEmpty()) {
+                PropertyRepository.deleteProperty(property.id) {
+                    isDeleting = false
+                    showDeleteConfirm = false
+                    refreshProperties()
+                }
+            } else {
+                activeReservations.forEach { res ->
+                    com.movil.arbnb.data.ReservationRepository.updateReservationStatus(res.id, "Cancelado") {
+                        updatedCount++
+                        if (updatedCount == activeReservations.size) {
+                            PropertyRepository.deleteProperty(property.id) {
+                                isDeleting = false
+                                showDeleteConfirm = false
+                                refreshProperties()
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -88,7 +121,7 @@ fun MyPropertiesScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            if (!isAddingProperty) {
+            if (!isAddingProperty && editingProperty == null) {
                 if (isLoading) {
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = ArbnbBlue)
@@ -97,8 +130,15 @@ fun MyPropertiesScreen(
                     if (userProperties.isEmpty()) {
                         Text("No tienes propiedades registradas.", color = Color.Gray, modifier = Modifier.padding(bottom = 16.dp))
                     } else {
-                        userProperties.forEach { property ->
-                            MyPropertyItemCard(property)
+                        userProperties.forEach { prop ->
+                            MyPropertyItemCard(
+                                prop, 
+                                onEdit = { editingProperty = prop },
+                                onDelete = {
+                                    propertyToDelete = prop
+                                    showDeleteConfirm = true
+                                }
+                            )
                         }
                     }
 
@@ -113,28 +153,38 @@ fun MyPropertiesScreen(
                         Text("Añadir Nueva Propiedad", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
+            } else if (editingProperty != null) {
+                AddPropertyForm(
+                    initialProperty = editingProperty,
+                    onCancel = { editingProperty = null },
+                    onSaved = { 
+                        showSuccessDialog = true
+                    },
+                    onError = {
+                        showErrorDialog = true
+                    }
+                )
             } else {
-                key(isAddingProperty) {
-                    AddPropertyForm(
-                        onCancel = { isAddingProperty = false },
-                        onSaved = { 
-                            showSuccessDialog = true
-                        },
-                        onError = {
-                            showErrorDialog = true
-                        }
-                    )
-                }
+                AddPropertyForm(
+                    onCancel = { isAddingProperty = false },
+                    onSaved = { 
+                        showSuccessDialog = true
+                    },
+                    onError = {
+                        showErrorDialog = true
+                    }
+                )
             }
         }
         
         if (showSuccessDialog) {
             PropertyAlert(
-                message = "¡Datos guardados con exito!",
+                message = "¡Datos guardados con éxito!",
                 isSuccess = true,
                 onDismiss = { 
                     showSuccessDialog = false
                     isAddingProperty = false
+                    editingProperty = null
                     refreshProperties()
                 }
             )
@@ -142,25 +192,53 @@ fun MyPropertiesScreen(
         
         if (showErrorDialog) {
             PropertyAlert(
-                message = "¡Porfavor llena todas las casillas!",
+                message = "¡Por favor llena todas las casillas!",
                 isSuccess = false,
                 onDismiss = { showErrorDialog = false }
+            )
+        }
+
+        if (showDeleteConfirm) {
+            AlertDialog(
+                onDismissRequest = { if (!isDeleting) showDeleteConfirm = false },
+                title = { Text("¿Borrar propiedad?") },
+                text = { Text("Esta acción es permanente. Si hay reservaciones activas, se cancelarán automáticamente y se notificará a los huéspedes sobre su reembolso.") },
+                confirmButton = {
+                    Button(
+                        onClick = { propertyToDelete?.let { deletePropertyAndNotify(it) } },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                        enabled = !isDeleting
+                    ) {
+                        if (isDeleting) CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
+                        else Text("Borrar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteConfirm = false }, enabled = !isDeleting) {
+                        Text("Cancelar")
+                    }
+                }
             )
         }
     }
 }
 
 @Composable
-fun AddPropertyForm(onCancel: () -> Unit, onSaved: () -> Unit, onError: () -> Unit) {
-    var tipo by remember { mutableStateOf("") }
-    var direccion by remember { mutableStateOf("") }
-    var zona by remember { mutableStateOf("") }
-    var ciudad by remember { mutableStateOf("") }
-    var estado by remember { mutableStateOf("") }
-    var precio by remember { mutableStateOf("") }
-    var nochesMinimas by remember { mutableStateOf("1") }
-    var descripcion by remember { mutableStateOf("") }
-    var amenidadesStr by remember { mutableStateOf("") }
+fun AddPropertyForm(
+    initialProperty: Property? = null,
+    onCancel: () -> Unit,
+    onSaved: () -> Unit,
+    onError: () -> Unit
+) {
+    var tipo by remember { mutableStateOf(initialProperty?.tipo_alojamiento ?: "") }
+    var direccion by remember { mutableStateOf(initialProperty?.direccion ?: "") }
+    var zona by remember { mutableStateOf(initialProperty?.zona ?: "") }
+    var ciudad by remember { mutableStateOf(initialProperty?.ciudad ?: "") }
+    var estado by remember { mutableStateOf(initialProperty?.estado ?: "") }
+    var precio by remember { mutableStateOf(initialProperty?.precio_noche ?: "") }
+    var nochesMinimas by remember { mutableStateOf(initialProperty?.noches_minimas?.toString() ?: "1") }
+    var descripcion by remember { mutableStateOf(initialProperty?.descripcion ?: "") }
+    var amenidadesStr by remember { mutableStateOf(initialProperty?.amenidades?.joinToString(", ") ?: "") }
     
     var isSaving by remember { mutableStateOf(false) }
 
@@ -170,7 +248,12 @@ fun AddPropertyForm(onCancel: () -> Unit, onSaved: () -> Unit, onError: () -> Un
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("¡Agrega Imágenes de tu propiedad!", fontWeight = FontWeight.Bold, fontSize = 20.sp, textAlign = TextAlign.Center)
+            Text(
+                if (initialProperty == null) "¡Agrega Imágenes de tu propiedad!" else "Edita tu propiedad",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                textAlign = TextAlign.Center
+            )
             Spacer(modifier = Modifier.height(16.dp))
             Box(
                 modifier = Modifier
@@ -179,7 +262,16 @@ fun AddPropertyForm(onCancel: () -> Unit, onSaved: () -> Unit, onError: () -> Un
                     .background(Color(0xFFEEEEEE), RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(60.dp), tint = Color.Gray)
+                if (initialProperty != null) {
+                    Image(
+                        painter = painterResource(id = initialProperty.imageRes),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(60.dp), tint = Color.Gray)
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -229,6 +321,7 @@ fun AddPropertyForm(onCancel: () -> Unit, onSaved: () -> Unit, onError: () -> Un
                             isSaving = true
                             val amenidadesList = amenidadesStr.split(",").map { it.trim() }.filter { it.isNotBlank() }
                             val property = Property(
+                                id = initialProperty?.id ?: "",
                                 tipo_alojamiento = trimmedTipo,
                                 direccion = trimmedDireccion,
                                 zona = zona.trim(),
@@ -238,11 +331,21 @@ fun AddPropertyForm(onCancel: () -> Unit, onSaved: () -> Unit, onError: () -> Un
                                 noches_minimas = nochesMinimas.toIntOrNull() ?: 1,
                                 descripcion = trimmedDesc,
                                 amenidades = amenidadesList,
-                                anfitrion_id = UserRepository.currentUser?.email ?: ""
+                                anfitrion_id = UserRepository.currentUser?.email ?: "",
+                                imageRes = initialProperty?.imageRes ?: android.R.drawable.ic_menu_gallery,
+                                reviews = initialProperty?.reviews ?: emptyList()
                             )
-                            PropertyRepository.addProperty(property) { success, _ ->
-                                isSaving = false
-                                if (success) onSaved()
+                            
+                            if (initialProperty == null) {
+                                PropertyRepository.addProperty(property) { success, _ ->
+                                    isSaving = false
+                                    if (success) onSaved()
+                                }
+                            } else {
+                                PropertyRepository.updateProperty(property) { success ->
+                                    isSaving = false
+                                    if (success) onSaved()
+                                }
                             }
                         }
                     },
@@ -254,7 +357,7 @@ fun AddPropertyForm(onCancel: () -> Unit, onSaved: () -> Unit, onError: () -> Un
                     if (isSaving) {
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(20.dp))
                     } else {
-                        Text("Publicar Propiedad", color = Color.White)
+                        Text(if (initialProperty == null) "Publicar Propiedad" else "Guardar Cambios", color = Color.White)
                     }
                 }
             }
@@ -263,19 +366,38 @@ fun AddPropertyForm(onCancel: () -> Unit, onSaved: () -> Unit, onError: () -> Un
 }
 
 @Composable
-fun MyPropertyItemCard(property: Property) {
+fun MyPropertyItemCard(property: Property, onEdit: () -> Unit, onDelete: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column {
-            Image(
-                painter = painterResource(id = property.imageRes),
-                contentDescription = null,
-                modifier = Modifier.fillMaxWidth().height(180.dp),
-                contentScale = ContentScale.Crop
-            )
+            Box {
+                Image(
+                    painter = painterResource(id = property.imageRes),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxWidth().height(180.dp),
+                    contentScale = ContentScale.Crop
+                )
+                Row(
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    IconButton(
+                        onClick = onEdit,
+                        modifier = Modifier.background(Color.White.copy(alpha = 0.7f), CircleShape)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = "Editar", tint = ArbnbBlue)
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.background(Color.White.copy(alpha = 0.7f), CircleShape)
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = "Borrar", tint = Color.Red)
+                    }
+                }
+            }
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("${property.tipo_alojamiento} en ${property.ciudad}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text(property.descripcion, fontSize = 12.sp, color = Color.Gray, maxLines = 2, overflow = TextOverflow.Ellipsis)
